@@ -1,0 +1,56 @@
+# SmartPOS — Root .gitignore
+# Protect secrets, build artifacts, logs, and local configuration.
+
+# ---- Environment files (never commit real credentials) ----
+.env
+*.env
+!.env.example
+!**/.env.example
+Database/Configuration/database.env
+Database/Configuration/.env
+Frontend/.env
+Backend/.env
+
+# ---- Python (Backend) ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# ---- Node / Vite (Frontend) ----
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# ---- Database ----
+Database/Backup/*.bak
+Database/Backup/*.trn
+Database/SQL/Migrations/*.snapshot
+*.mdf
+*.ldf
+
+# ---- Logs ----
+*.log
+logs/
+Database/Documentation/Diagrams/*.svg
+
+# ---- OS / Editor ----
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ---- Deployment ----
+Deployment/secrets/
+*.pem
+*.key
+*.p12
