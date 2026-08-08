@@ -70,9 +70,8 @@ type Tab = "business" | "tax" | "settings"
 
 const CATEGORIES = ["general", "appearance", "receipt", "notifications", "integrations"]
 
-export default function SettingsPage() {
+export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("business")
-  const queryClient = useQueryClient()
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: "business", label: "Business Info", icon: <Building2 size={18} /> },
@@ -114,7 +113,10 @@ function BusinessInfoTab() {
 
   const { data: businessInfo, isLoading } = useQuery<BusinessInfo>({
     queryKey: ["business-info"],
-    queryFn: () => apiGet("/business/info"),
+    queryFn: async () => {
+      const res = await apiGet<BusinessInfo>("/business/info")
+      return res.data
+    },
   })
 
   const updateMutation = useMutation({
@@ -285,7 +287,10 @@ function TaxRatesTab() {
 
   const { data: taxRates = [], isLoading } = useQuery<TaxRateRead[]>({
     queryKey: ["tax-rates"],
-    queryFn: () => apiGet("/business/tax-rates"),
+    queryFn: async () => {
+      const res = await apiGet<TaxRateRead[]>("/business/tax-rates")
+      return res.data
+    },
   })
 
   const createMutation = useMutation({
@@ -553,7 +558,10 @@ function AppSettingsTab() {
 
   const { data: settings = [], isLoading } = useQuery<SettingRead[]>({
     queryKey: ["settings", selectedCategory],
-    queryFn: () => apiGet(`/settings?category=${selectedCategory}`),
+    queryFn: async () => {
+      const res = await apiGet<SettingRead[]>(`/settings?category=${selectedCategory}`)
+      return res.data
+    },
   })
 
   const createMutation = useMutation({
@@ -603,7 +611,7 @@ function AppSettingsTab() {
     setEditingKey(setting.setting_key)
     reset({
       setting_key: setting.setting_key,
-      setting_value: setting.setting_value,
+      setting_value: setting.setting_value ?? "",
       data_type: setting.data_type as "string" | "number" | "boolean" | "json",
       category: setting.category,
       description: setting.description ?? "",

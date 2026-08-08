@@ -83,7 +83,7 @@ function downloadCSV(rows: Record<string, unknown>[], filename: string) {
   URL.revokeObjectURL(url)
 }
 
-export default function ReportsPage() {
+export function ReportsPage() {
   const [reportResult, setReportResult] = useState<ReportResponse | null>(null)
 
   const form = useForm<ReportForm>({
@@ -339,7 +339,7 @@ export default function ReportsPage() {
 
       {!generateMutation.isPending && !reportResult && (
         <EmptyState
-          message="Configure the filters above and click Generate Report to view results"
+          title="Configure the filters above and click Generate Report to view results"
           icon={<FileText className="h-12 w-12 text-gray-400" />}
         />
       )}
@@ -430,7 +430,7 @@ export default function ReportsPage() {
               </div>
             ) : (
               <EmptyState
-                message="No data available for the selected filters"
+                title="No data available for the selected filters"
                 icon={<FileText className="h-12 w-12 text-gray-400" />}
               />
             )}

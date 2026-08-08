@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from "axios";
 import { API_URL, TOKEN_KEY, REFRESH_TOKEN_KEY } from "@/constants";
-import type { ApiErrorResponse } from "@/types";
+import type { ApiErrorResponse, ApiMeta } from "@/types";
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -97,7 +97,7 @@ apiClient.interceptors.response.use(
 );
 
 export async function apiGet<T>(url: string, config?: AxiosRequestConfig) {
-  const response = await apiClient.get<{ success: boolean; data: T; meta?: Record<string, number> }>(url, config);
+  const response = await apiClient.get<{ success: boolean; data: T; meta?: ApiMeta }>(url, config);
   return response.data;
 }
 

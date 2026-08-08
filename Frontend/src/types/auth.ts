@@ -1,3 +1,5 @@
+import type { User } from "./models";
+
 export interface UserSummary {
   user_id: number;
   username: string;
@@ -10,6 +12,14 @@ export interface UserSummary {
   must_change_password: boolean;
   last_login_at: string | null;
 }
+
+/**
+ * The authenticated user held in AuthContext. It is compatible with both the
+ * login/stored shape (UserSummary, which omits phone/created_at/updated_at)
+ * and the full /auth/me record (User).
+ */
+export type AuthenticatedUser = UserSummary &
+  Partial<Pick<User, "phone" | "created_at" | "updated_at">>;
 
 export interface LoginCredentials {
   username: string;
@@ -26,8 +36,6 @@ export interface LoginResponse extends TokenResponse {
   refresh_token: string;
   user: UserSummary;
 }
-
-export interface RefreshResponse extends TokenResponse {}
 
 export interface ChangePasswordPayload {
   current_password: string;

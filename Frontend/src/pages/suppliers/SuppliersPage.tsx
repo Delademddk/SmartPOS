@@ -39,7 +39,7 @@ type ContactForm = z.infer<typeof contactSchema>;
 
 export function SuppliersPage() {
   const queryClient = useQueryClient();
-  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const { page, pageSize, setPage } = usePagination();
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("");
   const [showForm, setShowForm] = useState(false);

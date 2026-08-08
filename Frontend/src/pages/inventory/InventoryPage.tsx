@@ -13,6 +13,7 @@ import type {
   Inventory,
   InventoryMovement,
   LowStockAlert,
+  PaginatedResponse,
 } from "@/types";
 
 type Tab = "inventory" | "movements" | "low-stock";
@@ -109,7 +110,7 @@ function AlertStatusBadge({ status }: { status: string }) {
   );
 }
 
-export default function InventoryPage() {
+export function InventoryPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>("inventory");
   const [search, setSearch] = useState("");
@@ -124,102 +125,93 @@ export default function InventoryPage() {
   const [selectedProduct, setSelectedProduct] = useState<Inventory | null>(null);
   const [viewProduct, setViewProduct] = useState<Inventory | null>(null);
 
-  const pagination = usePagination({ initialPage: 1, initialLimit: 20 });
-  const movementsPagination = usePagination({ initialPage: 1, initialLimit: 20 });
-  const lowStockPagination = usePagination({ initialPage: 1, initialLimit: 20 });
+  const pagination = usePagination({ initialPage: 1, initialPageSize: 20 });
+  const movementsPagination = usePagination({ initialPage: 1, initialPageSize: 20 });
+  const lowStockPagination = usePagination({ initialPage: 1, initialPageSize: 20 });
 
   const {
     data: inventoryData,
     isLoading: inventoryLoading,
-  } = useQuery({
+  } = useQuery<PaginatedResponse<Inventory>>({
     queryKey: [
       "inventory",
       pagination.page,
-      pagination.limit,
+      pagination.pageSize,
       search,
       stockStatusFilter,
     ],
-    queryFn: () =>
-      apiGet<{
-        data: Inventory[];
-        total: number;
-        page: number;
-        limit: number;
-      }>("/inventory", {
+    queryFn: async () => {
+      const res = await apiGet<Inventory[]>("/inventory", {
         params: {
           page: pagination.page,
-          limit: pagination.limit,
+          page_size: pagination.pageSize,
           search: search || undefined,
           stock_status: stockStatusFilter || undefined,
         },
-      }),
+      });
+      return { data: res.data, meta: res.meta! };
+    },
   });
 
   const {
     data: movementsData,
-    isLoading: movementsLoading,
-  } = useQuery({
+  } = useQuery<PaginatedResponse<InventoryMovement>>({
     queryKey: [
       "inventory-movements",
       movementsPagination.page,
-      movementsPagination.limit,
+      movementsPagination.pageSize,
       movementTypeFilter,
       movementProductIdFilter,
       dateFrom,
       dateTo,
     ],
-    queryFn: () =>
-      apiGet<{
-        data: InventoryMovement[];
-        total: number;
-        page: number;
-        limit: number;
-      }>("/inventory/movements", {
+    queryFn: async () => {
+      const res = await apiGet<InventoryMovement[]>("/inventory/movements", {
         params: {
           page: movementsPagination.page,
-          limit: movementsPagination.limit,
+          page_size: movementsPagination.pageSize,
           product_id: movementProductIdFilter || undefined,
           movement_type: movementTypeFilter || undefined,
           date_from: dateFrom || undefined,
           date_to: dateTo || undefined,
         },
-      }),
+      });
+      return { data: res.data, meta: res.meta! };
+    },
     enabled: activeTab === "movements",
   });
 
   const {
     data: lowStockData,
-    isLoading: lowStockLoading,
-  } = useQuery({
+  } = useQuery<PaginatedResponse<LowStockAlert>>({
     queryKey: [
       "inventory-low-stock",
       lowStockPagination.page,
-      lowStockPagination.limit,
+      lowStockPagination.pageSize,
       lowStockStatusFilter,
     ],
-    queryFn: () =>
-      apiGet<{
-        data: LowStockAlert[];
-        total: number;
-        page: number;
-        limit: number;
-      }>("/inventory/low-stock", {
+    queryFn: async () => {
+      const res = await apiGet<LowStockAlert[]>("/inventory/low-stock", {
         params: {
           page: lowStockPagination.page,
-          limit: lowStockPagination.limit,
+          page_size: lowStockPagination.pageSize,
           status: lowStockStatusFilter || undefined,
         },
-      }),
+      });
+      return { data: res.data, meta: res.meta! };
+    },
     enabled: activeTab === "low-stock",
   });
 
   const {
     data: productDetail,
     isLoading: productDetailLoading,
-  } = useQuery({
+  } = useQuery<Inventory>({
     queryKey: ["inventory-product", viewProduct?.product_id],
-    queryFn: () =>
-      apiGet<Inventory>(`/inventory/product/${viewProduct?.product_id}`),
+    queryFn: async () => {
+      const res = await apiGet<Inventory>(`/inventory/product/${viewProduct?.product_id}`);
+      return res.data;
+    },
     enabled: !!viewProduct,
   });
 
@@ -280,16 +272,16 @@ export default function InventoryPage() {
   const watchedCountedQty = adjustForm.watch("counted_quantity");
 
   const items = inventoryData?.data ?? [];
-  const totalInventoryItems = inventoryData?.total ?? 0;
+  const totalInventoryItems = inventoryData?.meta.total_items ?? 0;
   const movements = movementsData?.data ?? [];
-  const totalMovements = movementsData?.total ?? 0;
+  const totalMovements = movementsData?.meta.total_items ?? 0;
   const lowStockAlerts = lowStockData?.data ?? [];
-  const totalLowStock = lowStockData?.total ?? 0;
+  const totalLowStock = lowStockData?.meta.total_items ?? 0;
 
   function openRestock(item?: Inventory) {
     if (item) {
       setSelectedProduct(item);
-      restockForm.setValue("product_id", item.product_id);
+      restockForm.setValue("product_id", String(item.product_id));
     } else {
       setSelectedProduct(null);
       restockForm.reset({ product_id: "", quantity: 1, unit_cost: 0, reason: "" });
@@ -300,7 +292,7 @@ export default function InventoryPage() {
   function openAdjust(item?: Inventory) {
     if (item) {
       setSelectedProduct(item);
-      adjustForm.setValue("product_id", item.product_id);
+      adjustForm.setValue("product_id", String(item.product_id));
       adjustForm.setValue("system_quantity", item.quantity_on_hand);
       adjustForm.setValue("counted_quantity", item.quantity_on_hand);
       adjustForm.setValue("quantity_change", 0);
@@ -316,11 +308,6 @@ export default function InventoryPage() {
       });
     }
     setShowAdjustModal(true);
-  }
-
-  function handleCountedQtyChange(value: number) {
-    const sysQty = adjustForm.getValues("system_quantity");
-    adjustForm.setValue("quantity_change", value - sysQty);
   }
 
   function handleTabChange(tab: Tab) {
@@ -513,7 +500,7 @@ export default function InventoryPage() {
             </table>
             {items.length === 0 && (
               <EmptyState
-                message="No inventory items found"
+                title="No inventory items found"
                 icon={<Package className="h-12 w-12 text-gray-400" />}
               />
             )}
@@ -532,11 +519,11 @@ export default function InventoryPage() {
                 Previous
               </button>
               <span>
-                Page {pagination.page} of {Math.max(1, Math.ceil(totalInventoryItems / pagination.limit))}
+                Page {pagination.page} of {Math.max(1, inventoryData?.meta.total_pages ?? 1)}
               </span>
               <button
                 onClick={() => pagination.setPage(pagination.page + 1)}
-                disabled={pagination.page >= Math.ceil(totalInventoryItems / pagination.limit)}
+                disabled={pagination.page >= Math.max(1, inventoryData?.meta.total_pages ?? 1)}
                 className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next
@@ -672,7 +659,9 @@ export default function InventoryPage() {
                       {formatNumber(movement.quantity_after)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500">
-                      {movement.unit_cost > 0 ? `$${movement.unit_cost.toFixed(2)}` : "-"}
+                      {(movement.unit_cost ?? 0) > 0
+                        ? `$${(movement.unit_cost ?? 0).toFixed(2)}`
+                        : "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">
                       {movement.reason}
@@ -689,7 +678,7 @@ export default function InventoryPage() {
             </table>
             {movements.length === 0 && (
               <EmptyState
-                message="No inventory movements found"
+                title="No inventory movements found"
                 icon={<History className="h-12 w-12 text-gray-400" />}
               />
             )}
@@ -709,13 +698,13 @@ export default function InventoryPage() {
               </button>
               <span>
                 Page {movementsPagination.page} of{" "}
-                {Math.max(1, Math.ceil(totalMovements / movementsPagination.limit))}
+                {Math.max(1, movementsData?.meta.total_pages ?? 1)}
               </span>
               <button
                 onClick={() => movementsPagination.setPage(movementsPagination.page + 1)}
                 disabled={
                   movementsPagination.page >=
-                  Math.ceil(totalMovements / movementsPagination.limit)
+                  Math.max(1, movementsData?.meta.total_pages ?? 1)
                 }
                 className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -831,7 +820,7 @@ export default function InventoryPage() {
             </table>
             {lowStockAlerts.length === 0 && (
               <EmptyState
-                message="No low stock alerts"
+                title="No low stock alerts"
                 icon={<AlertTriangle className="h-12 w-12 text-gray-400" />}
               />
             )}
@@ -851,13 +840,13 @@ export default function InventoryPage() {
               </button>
               <span>
                 Page {lowStockPagination.page} of{" "}
-                {Math.max(1, Math.ceil(totalLowStock / lowStockPagination.limit))}
+                {Math.max(1, lowStockData?.meta.total_pages ?? 1)}
               </span>
               <button
                 onClick={() => lowStockPagination.setPage(lowStockPagination.page + 1)}
                 disabled={
                   lowStockPagination.page >=
-                  Math.ceil(totalLowStock / lowStockPagination.limit)
+                  Math.max(1, lowStockData?.meta.total_pages ?? 1)
                 }
                 className="rounded border border-gray-300 px-3 py-1 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >

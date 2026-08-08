@@ -399,6 +399,19 @@ export interface TaxRate {
   is_active: boolean;
 }
 
+export type TaxRateRead = TaxRate;
+
+export interface TaxRateCreate {
+  tax_name: string;
+  tax_code: string;
+  rate_percent: number;
+  is_default?: boolean;
+}
+
+export type TaxRateUpdate = Partial<TaxRateCreate> & {
+  is_active?: boolean;
+};
+
 export interface Setting {
   setting_id: number;
   setting_key: string;
@@ -408,6 +421,44 @@ export interface Setting {
   description: string | null;
   is_active: boolean;
   updated_at: string;
+}
+
+export interface SettingRead {
+  setting_id: number;
+  setting_key: string;
+  setting_value: string | null;
+  data_type: string;
+  category: string;
+  description: string | null;
+  is_active: boolean;
+  updated_at: string;
+}
+
+export interface SettingCreate {
+  setting_key: string;
+  setting_value?: string | null;
+  data_type?: string;
+  category?: string;
+  description?: string | null;
+}
+
+export type SettingUpdate = Partial<SettingCreate> & {
+  is_active?: boolean;
+};
+
+export interface BusinessInfoUpdate {
+  business_name?: string;
+  legal_name?: string | null;
+  tax_id?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
+  currency_code?: string;
+  logo_url?: string | null;
 }
 
 export interface ReportRequest {

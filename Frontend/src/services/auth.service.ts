@@ -2,7 +2,6 @@ import { apiPost, apiGet } from "@/api/client";
 import type {
   LoginCredentials,
   LoginResponse,
-  RefreshResponse,
   User,
   ChangePasswordPayload,
 } from "@/types";

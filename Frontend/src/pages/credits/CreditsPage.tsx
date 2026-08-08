@@ -1,15 +1,15 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Search, Edit2, X, DollarSign, Clock, UserCheck } from "lucide-react"
+import { Plus, Search, Edit2, X, DollarSign, Clock } from "lucide-react"
 import toast from "react-hot-toast"
 import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client"
 import { usePagination } from "@/hooks/usePagination"
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback"
 import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format"
-import type { CreditSale, Customer, CreditPayment, PaymentMethod } from "@/types"
+import type { CreditSale, Customer, CreditPayment, PaymentMethod, PaginatedResponse } from "@/types"
 
 const customerSchema = z.object({
   customer_name: z.string().min(1, "Name is required"),
@@ -33,7 +33,7 @@ type Tab = "sales" | "customers"
 
 const STATUS_OPTIONS = ["OPEN", "PARTIAL", "SETTLED", "OVERDUE", "WRITTEN_OFF"] as const
 
-export default function CreditsPage() {
+export function CreditsPage() {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>("sales")
   const [searchQuery, setSearchQuery] = useState("")
@@ -47,49 +47,58 @@ export default function CreditsPage() {
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
 
-  const {
-    page,
-    limit,
-    totalPages,
-    setTotalPages,
-    setPage,
-    paginationParams,
-  } = usePagination()
+  const { page, pageSize, setPage } = usePagination()
+  const [totalPages, setTotalPages] = useState(1)
 
   // ─── Credit Sales ────────────────────────────────────────────────
 
   const creditParams: Record<string, string | number> = {
-    ...paginationParams,
+    page,
+    page_size: pageSize,
   }
   if (statusFilter) creditParams.status = statusFilter
   if (customerFilter) creditParams.customer_id = customerFilter
 
-  const { data: salesData, isLoading: salesLoading } = useQuery({
+  const { data: salesData, isLoading: salesLoading } = useQuery<PaginatedResponse<CreditSale>>({
     queryKey: ["credits", "sales", creditParams],
-    queryFn: () => apiGet<{ items: CreditSale[]; total: number; pages: number }>("/credits", creditParams),
-    onSuccess: (data) => setTotalPages(data.pages),
+    queryFn: async () => {
+      const res = await apiGet<CreditSale[]>("/credits", creditParams)
+      return { data: res.data, meta: res.meta! }
+    },
   })
+
+  useEffect(() => {
+    if (salesData?.meta) setTotalPages(salesData.meta.total_pages)
+  }, [salesData])
 
   // ─── Selected Sale Detail ────────────────────────────────────────
 
-  const { data: saleDetail, isLoading: detailLoading } = useQuery({
+  const { data: saleDetail, isLoading: detailLoading } = useQuery<CreditSale>({
     queryKey: ["credits", "sale", selectedSale?.credit_sale_id],
-    queryFn: () => apiGet<CreditSale>(`/credits/${selectedSale!.credit_sale_id}`),
+    queryFn: async () => {
+      const res = await apiGet<CreditSale>(`/credits/${selectedSale!.credit_sale_id}`)
+      return res.data
+    },
     enabled: !!selectedSale,
   })
 
-  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery<CreditPayment[]>({
     queryKey: ["credits", "payments", selectedSale?.credit_sale_id],
-    queryFn: () =>
-      apiGet<{ items: CreditPayment[] }>(`/credits/${selectedSale!.credit_sale_id}/payments`),
+    queryFn: async () => {
+      const res = await apiGet<CreditPayment[]>(`/credits/${selectedSale!.credit_sale_id}/payments`)
+      return res.data
+    },
     enabled: !!selectedSale,
   })
 
   // ─── Settlement ──────────────────────────────────────────────────
 
-  const { data: methodsData } = useQuery({
+  const { data: methodsData } = useQuery<PaymentMethod[]>({
     queryKey: ["payment-methods"],
-    queryFn: () => apiGet<{ items: PaymentMethod[] }>("/payments/methods"),
+    queryFn: async () => {
+      const res = await apiGet<PaymentMethod[]>("/payments/methods")
+      return res.data
+    },
   })
 
   const settlementForm = useForm<SettlementForm>({
@@ -105,7 +114,7 @@ export default function CreditsPage() {
       setShowDetail(false)
       setSelectedSale(null)
       settlementForm.reset()
-      queryClient.invalidateQueries(["credits"])
+      queryClient.invalidateQueries({ queryKey: ["credits"] })
     },
     onError: () => toast.error("Failed to record payment"),
   })
@@ -114,24 +123,28 @@ export default function CreditsPage() {
 
   const {
     page: custPage,
-    limit: custLimit,
-    totalPages: custTotalPages,
-    setTotalPages: setCustTotalPages,
+    pageSize: custPageSize,
     setPage: setCustPage,
-    paginationParams: custPaginationParams,
   } = usePagination()
+  const [custTotalPages, setCustTotalPages] = useState(1)
 
   const customerParams: Record<string, string | number> = {
-    ...custPaginationParams,
+    page: custPage,
+    page_size: custPageSize,
   }
   if (searchQuery) customerParams.search = searchQuery
 
-  const { data: customersData, isLoading: customersLoading } = useQuery({
+  const { data: customersData, isLoading: customersLoading } = useQuery<PaginatedResponse<Customer>>({
     queryKey: ["credits", "customers", customerParams],
-    queryFn: () =>
-      apiGet<{ items: Customer[]; total: number; pages: number }>("/credits/customers", customerParams),
-    onSuccess: (data) => setCustTotalPages(data.pages),
+    queryFn: async () => {
+      const res = await apiGet<Customer[]>("/credits/customers", customerParams)
+      return { data: res.data, meta: res.meta! }
+    },
   })
+
+  useEffect(() => {
+    if (customersData?.meta) setCustTotalPages(customersData.meta.total_pages)
+  }, [customersData])
 
   const customerForm = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
@@ -158,7 +171,7 @@ export default function CreditsPage() {
       toast.success("Customer created")
       setShowCustomerModal(false)
       customerForm.reset()
-      queryClient.invalidateQueries(["credits", "customers"])
+      queryClient.invalidateQueries({ queryKey: ["credits", "customers"] })
     },
     onError: () => toast.error("Failed to create customer"),
   })
@@ -171,7 +184,7 @@ export default function CreditsPage() {
       setShowCustomerModal(false)
       setEditingCustomer(null)
       customerForm.reset()
-      queryClient.invalidateQueries(["credits", "customers"])
+      queryClient.invalidateQueries({ queryKey: ["credits", "customers"] })
     },
     onError: () => toast.error("Failed to update customer"),
   })
@@ -180,7 +193,7 @@ export default function CreditsPage() {
     mutationFn: (id: number) => apiDelete(`/credits/customers/${id}`),
     onSuccess: () => {
       toast.success("Customer deleted")
-      queryClient.invalidateQueries(["credits", "customers"])
+      queryClient.invalidateQueries({ queryKey: ["credits", "customers"] })
     },
     onError: () => toast.error("Failed to delete customer"),
   })
@@ -293,8 +306,8 @@ export default function CreditsPage() {
 
           {salesLoading ? (
             <PageLoader />
-          ) : !salesData?.items?.length ? (
-            <EmptyState message="No credit sales found" />
+          ) : !salesData?.data?.length ? (
+            <EmptyState title="No credit sales found" />
           ) : (
             <>
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -328,7 +341,7 @@ export default function CreditsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {salesData.items.map((sale) => (
+                    {salesData.data.map((sale) => (
                       <tr
                         key={sale.credit_sale_id}
                         className="hover:bg-gray-50 cursor-pointer transition-colors"
@@ -433,8 +446,8 @@ export default function CreditsPage() {
 
           {customersLoading ? (
             <PageLoader />
-          ) : !customersData?.items?.length ? (
-            <EmptyState message="No customers found" />
+          ) : !customersData?.data?.length ? (
+            <EmptyState title="No customers found" />
           ) : (
             <>
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -465,7 +478,7 @@ export default function CreditsPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {customersData.items.map((customer) => (
+                    {customersData.data.map((customer) => (
                       <tr key={customer.customer_id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 font-medium">
                           {customer.customer_name}
@@ -701,12 +714,12 @@ export default function CreditsPage() {
                               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
                               <option value={0}>Select method...</option>
-                              {methodsData?.items?.map((m) => (
+                              {methodsData?.map((m) => (
                                 <option
                                   key={m.payment_method_id}
                                   value={m.payment_method_id}
                                 >
-                                  {m.name}
+                                  {m.method_name}
                                 </option>
                               ))}
                             </select>
@@ -729,10 +742,10 @@ export default function CreditsPage() {
                           <div className="flex gap-2">
                             <button
                               type="submit"
-                              disabled={settleMutation.isLoading}
+                              disabled={settleMutation.isPending}
                               className="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
                             >
-                              {settleMutation.isLoading ? "Processing..." : "Confirm Payment"}
+                              {settleMutation.isPending ? "Processing..." : "Confirm Payment"}
                             </button>
                             <button
                               type="button"
@@ -755,13 +768,13 @@ export default function CreditsPage() {
                     <div className="flex justify-center py-4">
                       <Spinner />
                     </div>
-                  ) : !paymentsData?.items?.length ? (
+                  ) : !paymentsData?.length ? (
                     <p className="text-sm text-gray-400 py-4 text-center">
                       No payments recorded
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {paymentsData.items.map((payment) => (
+                      {paymentsData.map((payment) => (
                         <div
                           key={payment.credit_payment_id}
                           className="border border-gray-100 rounded-lg p-3"
@@ -890,11 +903,11 @@ export default function CreditsPage() {
                 <button
                   type="submit"
                   disabled={
-                    createCustomerMutation.isLoading || updateCustomerMutation.isLoading
+                    createCustomerMutation.isPending || updateCustomerMutation.isPending
                   }
                   className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
-                  {createCustomerMutation.isLoading || updateCustomerMutation.isLoading
+                  {createCustomerMutation.isPending || updateCustomerMutation.isPending
                     ? "Saving..."
                     : editingCustomer
                     ? "Update Customer"

@@ -18,13 +18,14 @@ const categorySchema = z.object({
   category_code: z.string().min(1, "Category code is required"),
   description: z.string().optional(),
   parent_id: z.number().optional().nullable(),
+  is_active: z.boolean().optional(),
 });
 
 type CategoryForm = z.infer<typeof categorySchema>;
 
 export function CategoriesPage() {
   const queryClient = useQueryClient();
-  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const { page, pageSize, setPage } = usePagination();
   const [search, setSearch] = useState("");
   const [parentIdFilter, setParentIdFilter] = useState<string>("");
   const [isActiveFilter, setIsActiveFilter] = useState<string>("");
@@ -258,6 +259,7 @@ function CategoryModal({
           category_code: category.category_code,
           description: category.description || "",
           parent_id: category.parent_id,
+          is_active: category.is_active,
         }
       : {
           description: "",

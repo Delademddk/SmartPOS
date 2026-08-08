@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -63,7 +62,7 @@ export function ProfilePage() {
               </div>
               <div className="flex justify-between py-2">
                 <span className="text-gray-500">Member Since</span>
-                <span>{formatDate(user.created_at)}</span>
+                <span>{formatDate(user.created_at || "")}</span>
               </div>
             </div>
           </div>
@@ -78,7 +77,7 @@ export function ProfilePage() {
   );
 }
 
-function EditProfileForm({ user }: { user: { full_name: string; phone: string | null; email: string } }) {
+function EditProfileForm({ user }: { user: { full_name: string; phone?: string | null; email: string } }) {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
     defaultValues: {

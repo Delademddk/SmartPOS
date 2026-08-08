@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/api/client";
 import { getInitials } from "@/utils/format";
-import type { Notification } from "@/types";
 
 interface HeaderProps {
   onMenuToggle: () => void;

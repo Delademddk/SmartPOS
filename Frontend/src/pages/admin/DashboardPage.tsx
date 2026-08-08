@@ -1,11 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   DollarSign,
-  ShoppingCart,
   RotateCcw,
   AlertTriangle,
   Package,
-  Users,
   TrendingUp,
 } from "lucide-react";
 import { apiGet } from "@/api/client";
