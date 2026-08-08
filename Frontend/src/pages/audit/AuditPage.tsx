@@ -5,7 +5,7 @@ import { apiGet } from "@/api/client"
 import { usePagination } from "@/hooks/usePagination"
 import { PageLoader, EmptyState } from "@/components/feedback"
 import { formatDateTime } from "@/utils/format"
-import type { AuditLog, ActivityLog, SecurityLog, ErrorLog } from "@/types"
+import type { AuditLog, ActivityLog, SecurityLog, ErrorLog, PaginatedResponse } from "@/types"
 
 type TabKey = "audit" | "activity" | "security" | "errors"
 
@@ -15,34 +15,6 @@ interface AuditFilters {
   action_type: string
   date_from: string
   date_to: string
-}
-
-interface AuditLogsResponse {
-  items: AuditLog[]
-  total: number
-  page: number
-  per_page: number
-}
-
-interface ActivityLogsResponse {
-  items: ActivityLog[]
-  total: number
-  page: number
-  per_page: number
-}
-
-interface SecurityLogsResponse {
-  items: SecurityLog[]
-  total: number
-  page: number
-  per_page: number
-}
-
-interface ErrorLogsResponse {
-  items: ErrorLog[]
-  total: number
-  page: number
-  per_page: number
 }
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
@@ -84,11 +56,11 @@ function AuditLogsTable() {
     date_to: "",
   })
   const [searchTerm, setSearchTerm] = useState("")
-  const pagination = usePagination({ defaultPerPage: 20 })
+  const pagination = usePagination({ initialPageSize: 20 })
 
   const queryParams: Record<string, string | number> = {
     page: pagination.page,
-    per_page: pagination.per_page,
+    page_size: pagination.pageSize,
   }
   if (filters.user_id) queryParams.user_id = filters.user_id
   if (filters.resource_type) queryParams.resource_type = filters.resource_type
@@ -96,19 +68,22 @@ function AuditLogsTable() {
   if (filters.date_from) queryParams.date_from = filters.date_from
   if (filters.date_to) queryParams.date_to = filters.date_to
 
-  const { data, isLoading } = useQuery<AuditLogsResponse>({
+  const { data, isLoading } = useQuery<PaginatedResponse<AuditLog>>({
     queryKey: ["audit-logs", queryParams],
-    queryFn: () => apiGet("/audit/logs", { params: queryParams }),
+    queryFn: async () => {
+      const res = await apiGet<AuditLog[]>("/audit/logs", { params: queryParams })
+      return { data: res.data, meta: res.meta! }
+    },
   })
 
-  const filteredItems = (data?.items ?? []).filter((log) => {
+  const filteredItems = (data?.data ?? []).filter((log) => {
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     return (
-      log.username.toLowerCase().includes(term) ||
+      (log.username ?? "").toLowerCase().includes(term) ||
       log.action_type.toLowerCase().includes(term) ||
       log.resource_type.toLowerCase().includes(term) ||
-      log.resource_id.toLowerCase().includes(term)
+      log.resource_id != null && String(log.resource_id).toLowerCase().includes(term)
     )
   })
 
@@ -220,7 +195,7 @@ function AuditLogsTable() {
             {filteredItems.length === 0 ? (
               <tr>
                 <td colSpan={8}>
-                  <EmptyState message="No audit logs found" />
+                  <EmptyState title="No audit logs found" />
                 </td>
               </tr>
             ) : (
@@ -249,13 +224,13 @@ function AuditLogsTable() {
         </table>
       </div>
 
-      {data && data.total > 0 && (
+      {data && data.meta.total_items > 0 && (
         <PaginationBar
           page={pagination.page}
-          perPage={pagination.per_page}
-          total={data.total}
+          perPage={pagination.pageSize}
+          total={data.meta.total_items}
           onPageChange={pagination.setPage}
-          onPerPageChange={pagination.setPerPage}
+          onPerPageChange={pagination.setPageSize}
         />
       )}
     </div>
@@ -265,26 +240,29 @@ function AuditLogsTable() {
 function ActivityLogsTable() {
   const [userId, setUserId] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const pagination = usePagination({ defaultPerPage: 20 })
+  const pagination = usePagination({ initialPageSize: 20 })
 
   const queryParams: Record<string, string | number> = {
     page: pagination.page,
-    per_page: pagination.per_page,
+    page_size: pagination.pageSize,
   }
   if (userId) queryParams.user_id = userId
 
-  const { data, isLoading } = useQuery<ActivityLogsResponse>({
+  const { data, isLoading } = useQuery<PaginatedResponse<ActivityLog>>({
     queryKey: ["activity-logs", queryParams],
-    queryFn: () => apiGet("/audit/activity", { params: queryParams }),
+    queryFn: async () => {
+      const res = await apiGet<ActivityLog[]>("/audit/activity", { params: queryParams })
+      return { data: res.data, meta: res.meta! }
+    },
   })
 
-  const filteredItems = (data?.items ?? []).filter((log) => {
+  const filteredItems = (data?.data ?? []).filter((log) => {
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     return (
-      log.username.toLowerCase().includes(term) ||
+      (log.username ?? "").toLowerCase().includes(term) ||
       log.action.toLowerCase().includes(term) ||
-      log.description.toLowerCase().includes(term)
+      (log.description ?? "").toLowerCase().includes(term)
     )
   })
 
@@ -333,7 +311,7 @@ function ActivityLogsTable() {
             {filteredItems.length === 0 ? (
               <tr>
                 <td colSpan={5}>
-                  <EmptyState message="No activity logs found" />
+                  <EmptyState title="No activity logs found" />
                 </td>
               </tr>
             ) : (
@@ -346,7 +324,7 @@ function ActivityLogsTable() {
                       {log.action}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700 max-w-[300px] truncate" title={log.description}>
+                  <td className="px-4 py-3 text-sm text-gray-700 max-w-[300px] truncate" title={log.description ?? undefined}>
                     {log.description}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500 font-mono">{log.ip_address}</td>
@@ -357,13 +335,13 @@ function ActivityLogsTable() {
         </table>
       </div>
 
-      {data && data.total > 0 && (
+      {data && data.meta.total_items > 0 && (
         <PaginationBar
           page={pagination.page}
-          perPage={pagination.per_page}
-          total={data.total}
+          perPage={pagination.pageSize}
+          total={data.meta.total_items}
           onPageChange={pagination.setPage}
-          onPerPageChange={pagination.setPerPage}
+          onPerPageChange={pagination.setPageSize}
         />
       )}
     </div>
@@ -373,26 +351,29 @@ function ActivityLogsTable() {
 function SecurityLogsTable() {
   const [userId, setUserId] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const pagination = usePagination({ defaultPerPage: 20 })
+  const pagination = usePagination({ initialPageSize: 20 })
 
   const queryParams: Record<string, string | number> = {
     page: pagination.page,
-    per_page: pagination.per_page,
+    page_size: pagination.pageSize,
   }
   if (userId) queryParams.user_id = userId
 
-  const { data, isLoading } = useQuery<SecurityLogsResponse>({
+  const { data, isLoading } = useQuery<PaginatedResponse<SecurityLog>>({
     queryKey: ["security-logs", queryParams],
-    queryFn: () => apiGet("/audit/security", { params: queryParams }),
+    queryFn: async () => {
+      const res = await apiGet<SecurityLog[]>("/audit/security", { params: queryParams })
+      return { data: res.data, meta: res.meta! }
+    },
   })
 
-  const filteredItems = (data?.items ?? []).filter((log) => {
+  const filteredItems = (data?.data ?? []).filter((log) => {
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     return (
-      log.username.toLowerCase().includes(term) ||
+      (log.username ?? "").toLowerCase().includes(term) ||
       log.event_type.toLowerCase().includes(term) ||
-      log.description.toLowerCase().includes(term)
+      (log.description ?? "").toLowerCase().includes(term)
     )
   })
 
@@ -442,7 +423,7 @@ function SecurityLogsTable() {
             {filteredItems.length === 0 ? (
               <tr>
                 <td colSpan={6}>
-                  <EmptyState message="No security logs found" />
+                  <EmptyState title="No security logs found" />
                 </td>
               </tr>
             ) : (
@@ -455,11 +436,11 @@ function SecurityLogsTable() {
                       {log.event_type}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700 max-w-[300px] truncate" title={log.description}>
+                  <td className="px-4 py-3 text-sm text-gray-700 max-w-[300px] truncate" title={log.description ?? undefined}>
                     {log.description}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500 font-mono">{log.ip_address}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={log.user_agent}>
+                  <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate" title={log.user_agent ?? undefined}>
                     {log.user_agent}
                   </td>
                 </tr>
@@ -469,13 +450,13 @@ function SecurityLogsTable() {
         </table>
       </div>
 
-      {data && data.total > 0 && (
+      {data && data.meta.total_items > 0 && (
         <PaginationBar
           page={pagination.page}
-          perPage={pagination.per_page}
-          total={data.total}
+          perPage={pagination.pageSize}
+          total={data.meta.total_items}
           onPageChange={pagination.setPage}
-          onPerPageChange={pagination.setPerPage}
+          onPerPageChange={pagination.setPageSize}
         />
       )}
     </div>
@@ -485,24 +466,27 @@ function SecurityLogsTable() {
 function ErrorLogsTable() {
   const [userId, setUserId] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const pagination = usePagination({ defaultPerPage: 20 })
+  const pagination = usePagination({ initialPageSize: 20 })
 
   const queryParams: Record<string, string | number> = {
     page: pagination.page,
-    per_page: pagination.per_page,
+    page_size: pagination.pageSize,
   }
   if (userId) queryParams.user_id = userId
 
-  const { data, isLoading } = useQuery<ErrorLogsResponse>({
+  const { data, isLoading } = useQuery<PaginatedResponse<ErrorLog>>({
     queryKey: ["error-logs", queryParams],
-    queryFn: () => apiGet("/audit/errors", { params: queryParams }),
+    queryFn: async () => {
+      const res = await apiGet<ErrorLog[]>("/audit/errors", { params: queryParams })
+      return { data: res.data, meta: res.meta! }
+    },
   })
 
-  const filteredItems = (data?.items ?? []).filter((log) => {
+  const filteredItems = (data?.data ?? []).filter((log) => {
     if (!searchTerm) return true
     const term = searchTerm.toLowerCase()
     return (
-      log.username.toLowerCase().includes(term) ||
+      (log.username ?? "").toLowerCase().includes(term) ||
       log.error_type.toLowerCase().includes(term) ||
       log.message.toLowerCase().includes(term)
     )
@@ -554,7 +538,7 @@ function ErrorLogsTable() {
             {filteredItems.length === 0 ? (
               <tr>
                 <td colSpan={6}>
-                  <EmptyState message="No error logs found" />
+                  <EmptyState title="No error logs found" />
                 </td>
               </tr>
             ) : (
@@ -581,13 +565,13 @@ function ErrorLogsTable() {
         </table>
       </div>
 
-      {data && data.total > 0 && (
+      {data && data.meta.total_items > 0 && (
         <PaginationBar
           page={pagination.page}
-          perPage={pagination.per_page}
-          total={data.total}
+          perPage={pagination.pageSize}
+          total={data.meta.total_items}
           onPageChange={pagination.setPage}
-          onPerPageChange={pagination.setPerPage}
+          onPerPageChange={pagination.setPageSize}
         />
       )}
     </div>
@@ -690,7 +674,7 @@ const TAB_COMPONENTS: Record<TabKey, React.ComponentType> = {
   errors: ErrorLogsTable,
 }
 
-export default function AuditPage() {
+export function AuditPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("audit")
   const ActiveComponent = TAB_COMPONENTS[activeTab]
 

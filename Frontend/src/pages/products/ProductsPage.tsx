@@ -26,13 +26,8 @@ import { PageLoader } from "@/components/feedback/PageLoader";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Spinner } from "@/components/feedback/Spinner";
 import { cn } from "@/utils/cn";
-import { formatCurrency, formatDate, statusColor } from "@/utils/format";
-import type { Product, Category, Supplier, TaxRate } from "@/types";
-
-interface ProductListResponse {
-  data: Product[];
-  meta: { page: number; page_size: number; total_items: number; total_pages: number };
-}
+import { formatCurrency, statusColor } from "@/utils/format";
+import type { Product, Category, Supplier, TaxRate, PaginatedResponse } from "@/types";
 
 interface ProductCreatePayload {
   product_name: string;
@@ -118,7 +113,7 @@ export function ProductsPage() {
   const [filterStockStatus, setFilterStockStatus] = useState<string>("");
   const [filterIsActive, setFilterIsActive] = useState<string>("");
 
-  const { data: productsData, isLoading: productsLoading } = useQuery<ProductListResponse>({
+  const { data: productsData, isLoading: productsLoading } = useQuery<PaginatedResponse<Product>>({
     queryKey: ["products", page, pageSize, debouncedSearch, filterCategory, filterSupplier, filterStockStatus, filterIsActive],
     queryFn: async () => {
       const params = new URLSearchParams({

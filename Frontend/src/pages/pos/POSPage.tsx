@@ -121,7 +121,7 @@ export function POSPage() {
       const res = await apiGet<Customer[]>("/credits/customers")
       return res.data
     },
-    enabled: saleType === "CREDIT" || saleType === "CREDIT_PARTIAL",
+    enabled: saleType === "CREDIT",
     staleTime: 30_000,
   })
 

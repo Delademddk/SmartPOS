@@ -1,12 +1,12 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Search, Eye, XCircle, Receipt, X, Calendar } from "lucide-react"
+import { Search, Eye, XCircle, ReceiptIcon, X, Calendar } from "lucide-react"
 import toast from "react-hot-toast"
 import { apiGet, apiPost } from "@/api/client"
 import { usePagination } from "@/hooks/usePagination"
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback"
 import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format"
-import type { Sale, Receipt } from "@/types"
+import type { Sale, Receipt, PaginatedResponse } from "@/types"
 
 type StatusFilter = "" | "COMPLETED" | "VOIDED" | "REFUNDED"
 type SaleTypeFilter = "" | "CASH" | "CREDIT" | "CREDIT_PARTIAL"
@@ -108,7 +108,10 @@ function SaleDetailModal({
 }) {
   const { data: sale, isLoading } = useQuery<Sale>({
     queryKey: ["sale", saleId],
-    queryFn: () => apiGet(`/sales/${saleId}`),
+    queryFn: async () => {
+      const res = await apiGet<Sale>(`/sales/${saleId}`)
+      return res.data
+    },
     enabled: isOpen && saleId !== null,
   })
 
@@ -131,7 +134,8 @@ function SaleDetailModal({
   const handleViewReceipt = async () => {
     if (!saleId) return
     try {
-      const receipt = await apiGet<Receipt>(`/sales/${saleId}/receipt`)
+      const res = await apiGet<Receipt>(`/sales/${saleId}/receipt`)
+      const receipt = res.data
       const printWindow = window.open("", "_blank")
       if (printWindow) {
         printWindow.document.write(`
@@ -326,7 +330,7 @@ function SaleDetailModal({
               disabled={!sale}
               className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50"
             >
-              <Receipt className="w-4 h-4" /> View Receipt
+              <ReceiptIcon className="w-4 h-4" /> View Receipt
             </button>
             {sale && sale.status === "COMPLETED" && (
               <button
@@ -349,9 +353,8 @@ function SaleDetailModal({
   )
 }
 
-export default function SalesPage() {
-  const queryClient = useQueryClient()
-  const { page, perPage, setPage, setPerPage, nextPage, prevPage } = usePagination()
+export function SalesPage() {
+  const { page, pageSize, setPage, nextPage, prevPage } = usePagination()
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("")
@@ -365,7 +368,7 @@ export default function SalesPage() {
 
   const queryParams: SalesQueryParams = {
     page,
-    per_page: perPage,
+    per_page: pageSize,
   }
   if (search) queryParams.search = search
   if (statusFilter) queryParams.status = statusFilter
@@ -375,15 +378,9 @@ export default function SalesPage() {
   if (userId) queryParams.user_id = Number(userId)
   if (customerId) queryParams.customer_id = Number(customerId)
 
-  const { data, isLoading, isFetching } = useQuery<{
-    data: Sale[]
-    current_page: number
-    last_page: number
-    per_page: number
-    total: number
-  }>({
+  const { data, isLoading, isFetching } = useQuery<PaginatedResponse<Sale>>({
     queryKey: ["sales", queryParams],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams()
       params.set("page", String(queryParams.page))
       params.set("per_page", String(queryParams.per_page))
@@ -394,13 +391,14 @@ export default function SalesPage() {
       if (queryParams.date_to) params.set("date_to", queryParams.date_to)
       if (queryParams.user_id) params.set("user_id", String(queryParams.user_id))
       if (queryParams.customer_id) params.set("customer_id", String(queryParams.customer_id))
-      return apiGet(`/sales?${params.toString()}`)
+      const res = await apiGet<Sale[]>(`/sales?${params.toString()}`)
+      return { data: res.data, meta: res.meta! }
     },
   })
 
   const sales = data?.data || []
-  const totalPages = data?.last_page || 1
-  const total = data?.total || 0
+  const totalPages = data?.meta.total_pages || 1
+  const total = data?.meta.total_items || 0
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -500,7 +498,7 @@ export default function SalesPage() {
             <PageLoader />
           </div>
         ) : sales.length === 0 ? (
-          <EmptyState message="No sales found" />
+          <EmptyState title="No sales found" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -563,7 +561,7 @@ export default function SalesPage() {
         {total > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t">
             <p className="text-sm text-gray-600">
-              Showing {((page - 1) * perPage) + 1} to {Math.min(page * perPage, total)} of {total} sales
+              Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, total)} of {total} sales
             </p>
             <div className="flex items-center gap-2">
               <button

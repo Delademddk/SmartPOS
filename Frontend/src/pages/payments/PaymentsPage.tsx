@@ -4,9 +4,9 @@ import { Search, CreditCard, Filter, ChevronLeft, ChevronRight, RotateCcw } from
 import { apiGet } from "@/api/client";
 import { usePagination } from "@/hooks/usePagination";
 import { PageLoader, EmptyState } from "@/components/feedback";
-import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format";
+import { formatDateTime, formatCurrency, statusColor } from "@/utils/format";
 import { cn } from "@/utils/cn";
-import type { PaymentMethod } from "@/types";
+import type { PaginatedResponse, PaymentMethod } from "@/types";
 
 interface PaymentRead {
   payment_id: number;
@@ -19,16 +19,6 @@ interface PaymentRead {
   status: string;
   receipt_number: string;
   created_at: string;
-}
-
-interface PaginatedResponse<T> {
-  data: T[];
-  meta: {
-    page: number;
-    page_size: number;
-    total_items: number;
-    total_pages: number;
-  };
 }
 
 const STATUS_OPTIONS = [

@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Search, Edit2, Trash2, KeyRound, X } from "lucide-react";
 import toast from "react-hot-toast";
-import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client";
+import { apiGet, apiPost, apiPut } from "@/api/client";
 import { usePagination } from "@/hooks/usePagination";
 import { PageLoader } from "@/components/feedback/PageLoader";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -27,7 +27,7 @@ type UserForm = z.infer<typeof userSchema>;
 
 export function UsersPage() {
   const queryClient = useQueryClient();
-  const { page, pageSize, setPage, setPageSize } = usePagination();
+  const { page, pageSize, setPage } = usePagination();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -52,15 +52,6 @@ export function UsersPage() {
       const res = await apiGet<Role[]>("/roles");
       return res.data;
     },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (userId: number) => apiDelete(`/users/${userId}`),
-    onSuccess: () => {
-      toast.success("User deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-    },
-    onError: () => toast.error("Failed to delete user"),
   });
 
   const deactivateMutation = useMutation({
@@ -261,7 +252,6 @@ function UserModal({ user, roles, onClose }: { user: User | null; roles: Role[];
 
 function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
   const [newPassword, setNewPassword] = useState("");
-  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: () => apiPost(`/users/${user.user_id}/reset-password`, { new_password: newPassword }),

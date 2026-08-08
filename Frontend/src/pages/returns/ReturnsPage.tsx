@@ -9,14 +9,7 @@ import { apiGet, apiPost } from "@/api/client";
 import { usePagination } from "@/hooks/usePagination";
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback";
 import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format";
-import type { Return, ReturnReason, Sale, SaleItem } from "@/types";
-
-interface ReturnListResponse {
-  data: Return[];
-  meta: { page: number; page_size: number; total_items: number; total_pages: number };
-}
-
-interface SaleDetail extends Sale {}
+import type { Return, ReturnReason, Sale, SaleItem, PaginatedResponse } from "@/types";
 
 interface ReturnCreatePayload {
   sale_id: number;
@@ -50,7 +43,6 @@ const STATUS_OPTIONS = [
 ] as const;
 
 export function ReturnsPage() {
-  const queryClient = useQueryClient();
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("");
@@ -58,7 +50,7 @@ export function ReturnsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewReturnId, setViewReturnId] = useState<number | null>(null);
 
-  const { data: returnsData, isLoading: returnsLoading } = useQuery<ReturnListResponse>({
+  const { data: returnsData, isLoading: returnsLoading } = useQuery<PaginatedResponse<Return>>({
     queryKey: ["returns", page, pageSize, search, filterStatus, filterSaleId],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -232,7 +224,6 @@ function CreateReturnModal({ reasons, onClose }: CreateReturnModalProps) {
     handleSubmit,
     formState: { errors, isSubmitting },
     setValue,
-    watch,
   } = useForm<ReturnCreateForm>({
     resolver: zodResolver(returnCreateSchema),
     defaultValues: {
@@ -242,12 +233,10 @@ function CreateReturnModal({ reasons, onClose }: CreateReturnModalProps) {
     },
   });
 
-  const watchedReturnReason = watch("return_reason_id");
-
   const { data: saleDetail, isLoading: saleLoading } = useQuery({
     queryKey: ["sale-detail", selectedSaleId],
     queryFn: async () => {
-      const res = await apiGet<SaleDetail>(`/sales/${selectedSaleId}`);
+      const res = await apiGet<Sale>(`/sales/${selectedSaleId}`);
       return res.data;
     },
     enabled: !!selectedSaleId,

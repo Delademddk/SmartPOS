@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
-import type { User, LoginCredentials } from "@/types";
+import type { AuthenticatedUser, LoginCredentials } from "@/types";
 import { ROLES, type RoleCode } from "@/constants";
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthenticatedUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
@@ -23,7 +23,7 @@ export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [user, setUser] = useState<User | null>(authService.getStoredUser());
+  const [user, setUser] = useState<AuthenticatedUser | null>(authService.getStoredUser());
 
   const { data: currentUser, isLoading } = useQuery({
     queryKey: ["auth", "me"],
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [navigate, queryClient]);
 
   const hasPermission = useCallback(
-    (permission: string): boolean => {
+    (_permission: string): boolean => {
       if (!user) return false;
       if (user.role_code === ROLES.ADMIN) return true;
       return true;
