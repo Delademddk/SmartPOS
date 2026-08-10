@@ -154,7 +154,7 @@ class NotificationService(BaseService):
 
         admins = self.session.query(UserModel).join(Role).filter(
             Role.role_code == "ADMIN",
-            UserModel.is_active.is_(True),
-            UserModel.is_deleted.is_(False),
+            UserModel.is_active == True,
+            UserModel.is_deleted == False,
         ).all()
         return list(admins)

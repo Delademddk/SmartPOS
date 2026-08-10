@@ -1,6 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
 import type { AuthenticatedUser, LoginCredentials } from "@/types";
@@ -21,9 +20,10 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [user, setUser] = useState<AuthenticatedUser | null>(authService.getStoredUser());
+  const [user, setUser] = useState<AuthenticatedUser | null>(
+    authService.getStoredUser(),
+  );
 
   const { data: currentUser, isLoading } = useQuery({
     queryKey: ["auth", "me"],
@@ -46,29 +46,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (credentials: LoginCredentials) => {
       const response = await authService.login(credentials);
+
       setUser(response.user);
       queryClient.clear();
-      navigate(response.user.role_code === ROLES.CASHIER ? "/pos" : "/dashboard");
+
+      const target =
+        response.user.role_code === ROLES.CASHIER
+          ? "/pos"
+          : "/dashboard";
+
+      // Use browser navigation because AuthProvider is outside RouterProvider
+      window.location.replace(target);
     },
-    [navigate, queryClient],
+    [queryClient],
   );
 
   const logout = useCallback(async () => {
     const refreshToken = authService.getRefreshToken();
-    if (refreshToken) {
-      await authService.logout(refreshToken);
-    } else {
-      authService.clearStorage();
+
+    try {
+      if (refreshToken) {
+        await authService.logout(refreshToken);
+      } else {
+        authService.clearStorage();
+      }
+    } finally {
+      setUser(null);
+      queryClient.clear();
+
+      // Force redirect to login page
+      window.location.replace("/login");
     }
-    setUser(null);
-    queryClient.clear();
-    navigate("/login");
-  }, [navigate, queryClient]);
+  }, [queryClient]);
 
   const hasPermission = useCallback(
     (_permission: string): boolean => {
       if (!user) return false;
+
+      // TODO: replace with real permission checks when permissions are loaded
       if (user.role_code === ROLES.ADMIN) return true;
+
       return true;
     },
     [user],

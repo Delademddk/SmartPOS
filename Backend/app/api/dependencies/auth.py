@@ -92,7 +92,7 @@ def get_current_user_from_refresh(
         db.query(UserSession)
         .filter(
             UserSession.session_token == hash_token(jti),
-            UserSession.is_revoked.is_(False),
+            UserSession.is_revoked == False,
         )
         .first()
     )
@@ -109,7 +109,7 @@ def _user_has_permission(db: Session, user: User, permission_code: str) -> bool:
         .join(Permission.roles)
         .filter(
             Permission.permission_code == permission_code,
-            Permission.is_active.is_(True),
+            Permission.is_active == True,
         )
         .first()
     )

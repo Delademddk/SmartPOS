@@ -41,7 +41,7 @@ class CategoryRepository(BaseRepository[Category]):
         stmt = select(Category).where(
             Category.category_name == name,
             Category.parent_id == parent_id,
-            Category.is_deleted.is_(False),
+            Category.is_deleted == False,
         )
         return self.session.scalar(stmt)
 
@@ -53,7 +53,7 @@ class CategoryRepository(BaseRepository[Category]):
         page: int,
         page_size: int,
     ) -> tuple[list[Category], int]:
-        filters = [Category.is_deleted.is_(False)]
+        filters = [Category.is_deleted == False]
         if search:
             filters.append(Category.category_name.ilike(f"%{search}%"))
         if parent_id is not None:
@@ -76,14 +76,14 @@ class CategoryRepository(BaseRepository[Category]):
     def has_products(self, category_id: int) -> bool:
         stmt = select(Product.product_id).where(
             Product.category_id == category_id,
-            Product.is_deleted.is_(False),
+            Product.is_deleted == False,
         )
         return self.session.scalar(stmt) is not None
 
     def has_children(self, category_id: int) -> bool:
         stmt = select(Category.category_id).where(
             Category.parent_id == category_id,
-            Category.is_deleted.is_(False),
+            Category.is_deleted == False,
         )
         return self.session.scalar(stmt) is not None
 
@@ -111,7 +111,7 @@ class ProductRepository(BaseRepository[Product]):
         page: int,
         page_size: int,
     ) -> tuple[list[Product], int]:
-        filters = [Product.is_deleted.is_(False)]
+        filters = [Product.is_deleted == False]
         if search:
             like = f"%{search}%"
             filters.append(
@@ -185,7 +185,7 @@ class SupplierRepository(BaseRepository[Supplier]):
         page: int,
         page_size: int,
     ) -> tuple[list[Supplier], int]:
-        filters = [Supplier.is_deleted.is_(False)]
+        filters = [Supplier.is_deleted == False]
         if search:
             like = f"%{search}%"
             filters.append(
