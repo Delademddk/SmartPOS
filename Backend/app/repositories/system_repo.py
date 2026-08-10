@@ -54,7 +54,7 @@ class NotificationRepository(BaseRepository[Notification]):
     def unread_count(self, user_id: int) -> int:
         stmt = select(func.count()).select_from(Notification).where(
             Notification.user_id == user_id,
-            Notification.is_read.is_(False),
+            Notification.is_read == False,
         )
         return int(self.session.scalar(stmt) or 0)
 

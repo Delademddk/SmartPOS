@@ -37,7 +37,7 @@ class InventoryRepository(BaseRepository[Inventory]):
         filters = [Inventory.quantity_on_hand >= 0]
         from app.models.catalog import Product
 
-        base = select(Inventory).join(Product).where(Product.is_deleted.is_(False))
+        base = select(Inventory).join(Product).where(Product.is_deleted == False)
         if search:
             like = f"%{search}%"
             base = base.where(
@@ -204,7 +204,7 @@ class CustomerRepository(BaseRepository[Customer]):
         return self.session.scalar(stmt)
 
     def search(self, search: str | None, page: int, page_size: int) -> tuple[list[Customer], int]:
-        filters = [Customer.is_deleted.is_(False)]
+        filters = [Customer.is_deleted == False]
         if search:
             like = f"%{search}%"
             filters.append(

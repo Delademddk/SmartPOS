@@ -42,7 +42,6 @@ export interface Permission {
 export interface Category {
   category_id: number;
   category_name: string;
-  category_code: string;
   description: string | null;
   parent_id: number | null;
   is_active: boolean;

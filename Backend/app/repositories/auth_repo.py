@@ -47,7 +47,7 @@ class UserRepository(BaseRepository[User]):
         if role_id:
             filters.append(User.role_id == role_id)
         if not include_inactive:
-            filters.append(User.is_active.is_(True))
+            filters.append(User.is_active == True)
 
         total_stmt = select(func.count()).select_from(User).where(*filters)
         total = int(self.session.scalar(total_stmt) or 0)
@@ -103,7 +103,7 @@ class RolePermissionRepository(BaseRepository[RolePermission]):
             .where(
                 RolePermission.role_id == user.role_id,
                 Permission.permission_code == permission_code,
-                Permission.is_active.is_(True),
+                Permission.is_active == True,
             )
         )
         return self.session.scalar(stmt) is not None
@@ -120,7 +120,7 @@ class SessionRepository(BaseRepository[UserSession]):
         sessions = self.session.scalars(
             select(UserSession).where(
                 UserSession.user_id == user_id,
-                UserSession.is_revoked.is_(False),
+                UserSession.is_revoked == False,
             )
         ).all()
         for session in sessions:

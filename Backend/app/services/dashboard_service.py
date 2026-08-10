@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import Date, cast, func, select
 
 from app.core.constants import SaleStatus
 from app.models.catalog import Category, Product
@@ -71,13 +71,13 @@ class DashboardService(BaseService):
         )
         low_stock_count = session.scalar(
             select(func.count(Product.product_id)).join(Inventory).where(
-                Product.is_deleted.is_(False),
+                Product.is_deleted == False,
                 Inventory.quantity_on_hand <= Product.low_stock_threshold,
             )
         )
         out_of_stock_count = session.scalar(
             select(func.count(Product.product_id)).join(Inventory).where(
-                Product.is_deleted.is_(False),
+                Product.is_deleted == False,
                 Inventory.quantity_on_hand <= 0,
             )
         )
@@ -88,14 +88,14 @@ class DashboardService(BaseService):
         )
         active_users = session.scalar(
             select(func.count(User.user_id)).where(
-                User.is_active.is_(True),
-                User.is_deleted.is_(False),
+                User.is_active == True,
+                User.is_deleted == False,
             )
         )
         total_products = session.scalar(
             select(func.count(Product.product_id)).where(
-                Product.is_active.is_(True),
-                Product.is_deleted.is_(False),
+                Product.is_active == True,
+                Product.is_deleted == False,
             )
         )
 
@@ -141,7 +141,7 @@ class DashboardService(BaseService):
         start = today - timedelta(days=6)
         stmt = (
             select(
-                func.date(Sale.sale_date).label("sale_date"),
+                cast(Sale.sale_date, Date).label("sale_date"),
                 func.coalesce(func.sum(Sale.total_amount), 0).label("total"),
                 func.count(Sale.sale_id).label("cnt"),
             )
@@ -149,7 +149,7 @@ class DashboardService(BaseService):
                 Sale.status == SaleStatus.COMPLETED.value,
                 Sale.sale_date >= datetime.combine(start, datetime.min.time()),
             )
-            .group_by(func.date(Sale.sale_date))
+            .group_by(cast(Sale.sale_date, Date))
         )
         totals = {row.sale_date: (float(row.total), int(row.cnt)) for row in self.session.execute(stmt)}
         rows = []
@@ -273,7 +273,7 @@ class DashboardService(BaseService):
             .join(CreditSale, CreditSale.customer_id == Customer.customer_id)
             .where(
                 CreditSale.status.in_(["OPEN", "PARTIAL", "OVERDUE"]),
-                Customer.is_deleted.is_(False),
+                Customer.is_deleted == False,
             )
             .group_by(Customer.customer_id, Customer.customer_code, Customer.full_name, Customer.phone)
             .having(func.coalesce(func.sum(CreditSale.outstanding_balance), 0) > 0)
@@ -333,12 +333,12 @@ class DashboardService(BaseService):
         unread = session.scalar(
             select(func.count(Notification.notification_id)).where(
                 Notification.user_id == user.user_id,
-                Notification.is_read.is_(False),
+                Notification.is_read == False,
             )
         )
         low_stock = session.scalar(
             select(func.count(Product.product_id)).join(Inventory).where(
-                Product.is_deleted.is_(False),
+                Product.is_deleted == False,
                 Inventory.quantity_on_hand <= Product.low_stock_threshold,
             )
         )

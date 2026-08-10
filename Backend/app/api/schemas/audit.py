@@ -32,7 +32,7 @@ class ActivityLogRead(ORMModel):
     activity_desc: str | None = None
     entity_type: str | None = None
     entity_id: str | None = None
-    metadata: str | None = None
+    metadata_json: str | None = None
     ip_address: str | None = None
     created_at: datetime
 

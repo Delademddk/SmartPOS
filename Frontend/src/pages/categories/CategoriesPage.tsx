@@ -15,7 +15,6 @@ import type { Category } from "@/types";
 
 const categorySchema = z.object({
   category_name: z.string().min(1, "Category name is required"),
-  category_code: z.string().min(1, "Category code is required"),
   description: z.string().optional(),
   parent_id: z.number().optional().nullable(),
   is_active: z.boolean().optional(),
@@ -51,7 +50,7 @@ export function CategoriesPage() {
   const { data: allCategories } = useQuery({
     queryKey: ["categories", "all"],
     queryFn: async () => {
-      const res = await apiGet<Category[]>("/categories?page_size=1000");
+      const res = await apiGet<Category[]>("/categories?page_size=200");
       return res.data;
     },
   });
@@ -131,7 +130,6 @@ export function CategoriesPage() {
             <thead>
               <tr>
                 <th>Category</th>
-                <th>Code</th>
                 <th>Children</th>
                 <th>Products</th>
                 <th>Status</th>
@@ -151,9 +149,6 @@ export function CategoriesPage() {
                         </p>
                       )}
                     </div>
-                  </td>
-                  <td>
-                    <span className="badge-info">{category.category_code}</span>
                   </td>
                   <td>
                     <span className="text-sm text-gray-700">
@@ -256,7 +251,6 @@ function CategoryModal({
     defaultValues: category
       ? {
           category_name: category.category_name,
-          category_code: category.category_code,
           description: category.description || "",
           parent_id: category.parent_id,
           is_active: category.is_active,
@@ -319,21 +313,6 @@ function CategoryModal({
             {errors.category_name && (
               <p className="mt-1 text-xs text-red-600">
                 {errors.category_name.message}
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="label">Category Code</label>
-            <input
-              {...register("category_code")}
-              disabled={isEdit}
-              className={`input ${errors.category_code ? "input-error" : ""} ${
-                isEdit ? "bg-gray-50" : ""
-              }`}
-            />
-            {errors.category_code && (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.category_code.message}
               </p>
             )}
           </div>

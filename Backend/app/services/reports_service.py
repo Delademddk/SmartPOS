@@ -179,7 +179,7 @@ class ReportsService(BaseService):
             .outerjoin(Category, Category.category_id == Product.category_id)
             .outerjoin(Supplier, Supplier.supplier_id == Product.supplier_id)
             .outerjoin(Inventory, Inventory.product_id == Product.product_id)
-            .where(Product.is_deleted.is_(False))
+            .where(Product.is_deleted == False)
         )
         if payload.category_id:
             stmt = stmt.where(Product.category_id == payload.category_id)
@@ -301,9 +301,9 @@ class ReportsService(BaseService):
                 func.count(Product.product_id).label("product_count"),
                 func.coalesce(func.sum(func.coalesce(Inventory.quantity_on_hand, 0) * func.coalesce(Product.cost_price, 0)), 0).label("stock_value"),
             )
-            .outerjoin(Product, (Product.supplier_id == Supplier.supplier_id) & (Product.is_deleted.is_(False)))
+            .outerjoin(Product, (Product.supplier_id == Supplier.supplier_id) & (Product.is_deleted == False))
             .outerjoin(Inventory, Inventory.product_id == Product.product_id)
-            .where(Supplier.is_deleted.is_(False))
+            .where(Supplier.is_deleted == False)
             .group_by(
                 Supplier.supplier_id,
                 Supplier.supplier_code,
