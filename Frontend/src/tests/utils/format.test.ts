@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   formatCurrency,
+  setCurrencySymbol,
   formatNumber,
   formatPercent,
   truncate,
@@ -31,6 +32,25 @@ describe("formatCurrency", () => {
 
   it("treats null as zero instead of crashing", () => {
     expect(formatCurrency(null)).toBe("$0.00");
+  });
+});
+
+describe("setCurrencySymbol", () => {
+  it("changes the default symbol used by formatCurrency", () => {
+    setCurrencySymbol("KES");
+    expect(formatCurrency(100)).toBe("KES100.00");
+    setCurrencySymbol("$");
+  });
+
+  it("ignores an empty symbol and falls back to $", () => {
+    setCurrencySymbol("   ");
+    expect(formatCurrency(100)).toBe("$100.00");
+  });
+
+  it("still honours an explicit symbol argument", () => {
+    setCurrencySymbol("KES");
+    expect(formatCurrency(100, "€")).toBe("€100.00");
+    setCurrencySymbol("$");
   });
 });
 

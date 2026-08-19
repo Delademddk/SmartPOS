@@ -17,8 +17,8 @@ import { apiGet, apiPost } from "@/api/client"
 import { Spinner } from "@/components/feedback"
 import { ProductImage } from "@/components/ui/ProductImage"
 import { cn } from "@/utils/cn"
-import { formatCurrency } from "@/utils/format"
 import { useDebounce } from "@/hooks/useDebounce"
+import { useSettings } from "@/hooks/useSettings"
 import type { Product, PaymentMethod, Customer, Category, TaxRate } from "@/types"
 
 interface CartItem {
@@ -129,11 +129,13 @@ export function POSPage() {
   const taxRatesQuery = useQuery({
     queryKey: ["pos-tax-rates"],
     queryFn: async () => {
-      const res = await apiGet<TaxRate[]>("/tax-rates?page=1&page_size=200")
+      const res = await apiGet<TaxRate[]>("/business/tax-rates?page=1&page_size=200")
       return res.data
     },
     staleTime: 60_000,
   })
+
+  const { defaultTaxRateId: configuredDefaultTaxId, formatMoney } = useSettings()
 
   const cartTotal = useMemo(() => {
     const subtotal = cart.reduce((sum, item) => sum + item.line_total, 0)
@@ -339,7 +341,14 @@ export function POSPage() {
     }
   }, [paymentMethodsQuery.data, paymentMethodId])
 
-  const defaultTaxRate = taxRatesQuery.data?.find((tr) => tr.is_default)
+  const defaultTaxRate = useMemo(() => {
+    const rates = taxRatesQuery.data || []
+    if (configuredDefaultTaxId) {
+      const configured = rates.find((tr) => tr.tax_rate_id === configuredDefaultTaxId)
+      if (configured) return configured
+    }
+    return rates.find((tr) => tr.is_default)
+  }, [taxRatesQuery.data, configuredDefaultTaxId])
 
   useEffect(() => {
     if (defaultTaxRate && taxRateId === null) {
@@ -461,7 +470,7 @@ export function POSPage() {
 
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-sm font-bold text-primary-700">
-                          {formatCurrency(product.unit_price)}
+                          {formatMoney(product.unit_price)}
                         </span>
                       </div>
 
@@ -521,7 +530,7 @@ export function POSPage() {
                           <p className="truncate text-sm font-medium text-gray-900">{item.product_name}</p>
                           <p className="text-xs text-gray-400">{item.sku}</p>
                           <p className="mt-1 text-xs text-gray-500">
-                            {formatCurrency(item.unit_price)} each
+                            {formatMoney(item.unit_price)} each
                           </p>
                         </div>
                         <button
@@ -549,7 +558,7 @@ export function POSPage() {
                           </button>
                         </div>
                         <span className="text-sm font-semibold text-gray-900">
-                          {formatCurrency(item.line_total)}
+                          {formatMoney(item.line_total)}
                         </span>
                       </div>
                     </div>
@@ -653,12 +662,12 @@ export function POSPage() {
                       min="0"
                       value={amountReceived}
                       onChange={(e) => setAmountReceived(e.target.value)}
-                      placeholder={formatCurrency(cartTotal.total)}
+                      placeholder={formatMoney(cartTotal.total)}
                       className="input w-full text-sm"
                     />
                     {parseFloat(amountReceived) > 0 && (
                       <p className="mt-1 text-xs text-green-600">
-                        Change: {formatCurrency(change)}
+                        Change: {formatMoney(change)}
                       </p>
                     )}
                   </div>
@@ -725,23 +734,23 @@ export function POSPage() {
               <div className="mb-3 space-y-1.5">
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Subtotal</span>
-                  <span>{formatCurrency(cartTotal.subtotal)}</span>
+                  <span>{formatMoney(cartTotal.subtotal)}</span>
                 </div>
                 {cartTotal.discount > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Discount</span>
-                    <span>-{formatCurrency(cartTotal.discount)}</span>
+                    <span>-{formatMoney(cartTotal.discount)}</span>
                   </div>
                 )}
                 {cartTotal.tax > 0 && (
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Tax</span>
-                    <span>{formatCurrency(cartTotal.tax)}</span>
+                    <span>{formatMoney(cartTotal.tax)}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-gray-200 pt-1.5 text-base font-bold text-gray-900">
                   <span>Total</span>
-                  <span>{formatCurrency(cartTotal.total)}</span>
+                  <span>{formatMoney(cartTotal.total)}</span>
                 </div>
               </div>
 
@@ -760,7 +769,7 @@ export function POSPage() {
                 ) : (
                   <>
                     <Check className="h-4 w-4" />
-                    Complete Sale — {formatCurrency(cartTotal.total)}
+                    Complete Sale — {formatMoney(cartTotal.total)}
                   </>
                 )}
               </button>

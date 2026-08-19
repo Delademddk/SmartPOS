@@ -98,6 +98,18 @@ class ReceiptRead(ORMModel):
     generated_at: datetime
     items: list[SaleItemRead] = []
     sale: SaleRead | None = None
+    # Enriched business/settings fields (populated by SalesService.receipt_view).
+    business_name: str | None = None
+    business_address: str | None = None
+    business_phone: str | None = None
+    business_email: str | None = None
+    receipt_footer: str | None = None
+    subtotal: float | None = None
+    total_amount: float | None = None
+    amount_received: float | None = None
+    change_amount: float | None = None
+    cashier_name: str | None = None
+    sale_date: datetime | None = None
 
 
 class VoidSaleRequest(CreateModel):

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/hooks/useSettings";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ const navItems: NavItem[] = [
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { isAdmin } = useAuth();
+  const { businessName } = useSettings();
 
   const filteredItems = navItems.filter((item) => !item.adminOnly || isAdmin);
 
@@ -75,7 +77,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
               <ShoppingCart className="h-5 w-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-gray-900">SmartPOS</span>
+            <span className="text-lg font-bold text-gray-900">{businessName}</span>
           </div>
           <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-gray-100">
             <X className="h-5 w-5 text-gray-500" />
