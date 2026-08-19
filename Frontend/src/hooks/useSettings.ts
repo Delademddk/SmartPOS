@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/api/client";
+import { authService } from "@/services/auth.service";
 import { formatCurrencyWithConfig, setCurrencyConfig } from "@/utils/format";
 import type { CurrencyConfig } from "@/utils/format";
 import type { SettingRead } from "@/types";
@@ -70,12 +71,15 @@ function normalizeConfigCode(code: string): string {
  * formatCurrency() call sites reflect the configured currency.
  */
 export function useSettings(): UseSettingsResult {
+  const settingsEnabled = authService.isAuthenticated();
+
   const { data, isLoading } = useQuery<SettingRead[]>({
     queryKey: ["settings", "public"],
     queryFn: async () => {
       const res = await apiGet<SettingRead[]>("/settings/public");
       return res.data;
     },
+    enabled: settingsEnabled,
     staleTime: 60_000,
   });
 
@@ -85,6 +89,7 @@ export function useSettings(): UseSettingsResult {
       const res = await apiGet<Partial<CurrencyConfigApi>>("/settings/currency");
       return res.data;
     },
+    enabled: settingsEnabled,
     staleTime: 60_000,
   });
 
