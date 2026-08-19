@@ -11,7 +11,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { PageLoader } from "@/components/feedback/PageLoader";
 import { ErrorDisplay } from "@/components/feedback/ErrorDisplay";
-import type { DashboardKPIs } from "@/types";
+import type {
+  DashboardKPIs,
+  DashboardSalesTrendItem,
+  DashboardTopProduct,
+} from "@/types";
 
 export function DashboardPage() {
   const { isCashier } = useAuth();
@@ -144,9 +148,7 @@ function TopProductsWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "top-products"],
     queryFn: async () => {
-      const res = await apiGet<Array<{ product_name: string; total_qty: number; total_revenue: number }>>(
-        "/dashboard/top-products?days=30&limit=5",
-      );
+      const res = await apiGet<DashboardTopProduct[]>("/dashboard/top-products?days=30&limit=5");
       return res.data;
     },
   });
@@ -164,9 +166,9 @@ function TopProductsWidget() {
             <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <div>
                 <p className="text-sm font-medium text-gray-900">{item.product_name}</p>
-                <p className="text-xs text-gray-500">{item.total_qty} sold</p>
+                <p className="text-xs text-gray-500">{item.qty_sold} sold</p>
               </div>
-              <p className="text-sm font-semibold text-gray-900">{formatCurrency(item.total_revenue)}</p>
+              <p className="text-sm font-semibold text-gray-900">{formatCurrency(item.revenue)}</p>
             </div>
           ))}
         </div>
@@ -179,9 +181,7 @@ function SalesTrendWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", "sales-trend"],
     queryFn: async () => {
-      const res = await apiGet<Array<{ date: string; total: number; count: number }>>(
-        "/dashboard/sales-trend-7d",
-      );
+      const res = await apiGet<DashboardSalesTrendItem[]>("/dashboard/sales-trend-7d");
       return res.data;
     },
   });
@@ -199,8 +199,8 @@ function SalesTrendWidget() {
             <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <span className="text-sm text-gray-600">{item.date}</span>
               <div className="flex items-center gap-4">
-                <span className="text-xs text-gray-500">{item.count} sales</span>
-                <span className="text-sm font-semibold text-gray-900">{formatCurrency(item.total)}</span>
+                <span className="text-xs text-gray-500">{item.sale_count} sales</span>
+                <span className="text-sm font-semibold text-gray-900">{formatCurrency(item.total_sales)}</span>
               </div>
             </div>
           ))}

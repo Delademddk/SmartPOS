@@ -493,6 +493,22 @@ export interface DashboardKPIs {
   total_products_active: number;
 }
 
+export interface DashboardSalesTrendItem {
+  date: string;
+  weekday: string;
+  total_sales: number;
+  sale_count: number;
+}
+
+export interface DashboardTopProduct {
+  product_id: number;
+  product_name: string;
+  sku: string;
+  qty_sold: number;
+  revenue: number;
+  share_pct: number;
+}
+
 export interface Receipt {
   receipt_id: number;
   sale_id: number;

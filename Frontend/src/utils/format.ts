@@ -1,5 +1,6 @@
-export function formatCurrency(amount: number, symbol = "$"): string {
-  return `${symbol}${amount.toLocaleString("en-US", {
+export function formatCurrency(amount: number | null | undefined, symbol = "$"): string {
+  const value = amount ?? 0;
+  return `${symbol}${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

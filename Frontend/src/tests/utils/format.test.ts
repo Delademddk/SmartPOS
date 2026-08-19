@@ -24,6 +24,14 @@ describe("formatCurrency", () => {
   it("uses custom symbol", () => {
     expect(formatCurrency(100, "KES")).toBe("KES100.00");
   });
+
+  it("treats undefined as zero instead of crashing", () => {
+    expect(formatCurrency(undefined)).toBe("$0.00");
+  });
+
+  it("treats null as zero instead of crashing", () => {
+    expect(formatCurrency(null)).toBe("$0.00");
+  });
 });
 
 describe("formatNumber", () => {
