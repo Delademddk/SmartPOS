@@ -93,7 +93,7 @@ src/
 - **Authentication** — JWT login with token refresh
 - **Role-based access** — Admin and Cashier roles with different permissions
 - **POS Interface** — Fast keyboard-friendly cashier screen
-- **Product Management** — Full CRUD with categories and suppliers
+- **Product Management** — Full CRUD with categories, suppliers and product images (upload, preview, replace, remove; placeholder when none)
 - **Inventory** — Stock tracking, restocking, adjustments, low stock alerts
 - **Sales** — Complete sales workflow with receipts
 - **Credit Sales** — Customer credit management and settlements
@@ -121,6 +121,17 @@ All API calls go through a centralized Axios client (`src/api/client.ts`) that h
 - Error handling
 
 Server state is managed via TanStack Query with proper caching and invalidation.
+
+### Product Images
+
+Product images are uploaded as `multipart/form-data` to the existing product
+create/update endpoints (`data` field = JSON payload, `image` file, optional
+`remove_image=true`). `image_url` returned by the backend is treated as an
+opaque URL/path: relative paths (local uploads, e.g. `/uploads/products/…`) are
+prefixed with the API origin from `VITE_API_URL`, while absolute URLs (Amazon
+S3 / CDN in future deployments) are used as-is — no frontend changes required
+when moving to S3. Accepted formats are JPEG, PNG and WebP up to 2 MB,
+validated client-side and authoritatively by the backend.
 
 ## Testing
 

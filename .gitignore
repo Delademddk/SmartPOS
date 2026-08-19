@@ -41,6 +41,9 @@ Database/SQL/Migrations/*.snapshot
 logs/
 Database/Documentation/Diagrams/*.svg
 
+# ---- Uploaded product images (Phase 03A) ----
+Backend/uploads/
+
 # ---- OS / Editor ----
 .DS_Store
 Thumbs.db

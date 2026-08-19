@@ -15,6 +15,7 @@ import {
 import toast from "react-hot-toast"
 import { apiGet, apiPost } from "@/api/client"
 import { Spinner } from "@/components/feedback"
+import { ProductImage } from "@/components/ui/ProductImage"
 import { cn } from "@/utils/cn"
 import { formatCurrency } from "@/utils/format"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -448,9 +449,12 @@ export function POSPage() {
                         </span>
                       )}
 
-                      <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-500">
-                        {product.category_name?.slice(0, 2).toUpperCase() || "—"}
-                      </div>
+                      <ProductImage
+                        imageUrl={product.image_url}
+                        alt={product.product_name}
+                        className="mb-2 h-16 w-full rounded-lg"
+                        iconClassName="h-8 w-8"
+                      />
 
                       <p className="line-clamp-2 text-sm font-medium text-gray-900">{product.product_name}</p>
                       <p className="mt-0.5 text-xs text-gray-400">{product.sku}</p>

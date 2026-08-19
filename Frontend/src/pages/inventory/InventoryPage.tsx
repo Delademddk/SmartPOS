@@ -79,22 +79,6 @@ function StockStatusBadge({ status }: { status: string }) {
   );
 }
 
-function SeverityBadge({ severity }: { severity: string }) {
-  const colors: Record<string, string> = {
-    LOW: "bg-yellow-100 text-yellow-800",
-    MEDIUM: "bg-orange-100 text-orange-800",
-    HIGH: "bg-red-100 text-red-800",
-    CRITICAL: "bg-red-200 text-red-900",
-  };
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[severity] || "bg-gray-100 text-gray-800"}`}
-    >
-      {severity}
-    </span>
-  );
-}
-
 function AlertStatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     ACTIVE: "bg-red-100 text-red-800",
@@ -216,12 +200,21 @@ export function InventoryPage() {
   });
 
   const restockMutation = useMutation({
-    mutationFn: (data: RestockForm) => apiPost("/inventory/restock", { body: data }),
+    mutationFn: (data: RestockForm) =>
+      apiPost("/inventory/restock", {
+        product_id: Number(data.product_id),
+        quantity: data.quantity,
+        unit_cost: data.unit_cost,
+        reason: data.reason,
+      }),
     onSuccess: () => {
       toast.success("Stock restocked successfully");
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory-movements"] });
       queryClient.invalidateQueries({ queryKey: ["inventory-low-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["pos-products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setShowRestockModal(false);
       setSelectedProduct(null);
     },
@@ -232,12 +225,22 @@ export function InventoryPage() {
 
   const adjustMutation = useMutation({
     mutationFn: (data: AdjustStockForm) =>
-      apiPost("/inventory/adjust", { body: data }),
+      apiPost("/inventory/adjust", {
+        product_id: Number(data.product_id),
+        adjustment_type: data.adjustment_type,
+        system_quantity: data.system_quantity,
+        counted_quantity: data.counted_quantity,
+        quantity_change: data.quantity_change,
+        reason: data.reason,
+      }),
     onSuccess: () => {
       toast.success("Stock adjusted successfully");
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
       queryClient.invalidateQueries({ queryKey: ["inventory-movements"] });
       queryClient.invalidateQueries({ queryKey: ["inventory-low-stock"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["pos-products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setShowAdjustModal(false);
       setSelectedProduct(null);
     },
@@ -425,7 +428,7 @@ export function InventoryPage() {
                     Available
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Reorder Level
+                    Low Stock Threshold
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
                     Status
@@ -434,7 +437,7 @@ export function InventoryPage() {
                     Last Restock
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Last Count
+                    Last Sold
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
                     Actions
@@ -465,16 +468,16 @@ export function InventoryPage() {
                       {formatNumber(item.available_quantity)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500">
-                      {formatNumber(item.reorder_level)}
+                      {formatNumber(item.low_stock_threshold ?? 0)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-center">
                       <StockStatusBadge status={item.stock_status} />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {item.last_restock_date ? formatDate(item.last_restock_date) : "-"}
+                      {item.last_restocked_at ? formatDate(item.last_restocked_at) : "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {item.last_count_date ? formatDate(item.last_count_date) : "-"}
+                      {item.last_sold_at ? formatDate(item.last_sold_at) : "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -622,7 +625,9 @@ export function InventoryPage() {
                 {movements.map((movement) => (
                   <tr key={movement.transaction_id} className="hover:bg-gray-50">
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-gray-500">
-                      {movement.reference_number}
+                      {movement.reference_type
+                        ? `${movement.reference_type}${movement.reference_id ? ` #${movement.reference_id}` : ""}`
+                        : "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
                       {movement.product_name}
@@ -667,7 +672,7 @@ export function InventoryPage() {
                       {movement.reason}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {movement.user_name}
+                      {movement.username}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
                       {formatDateTime(movement.created_at)}
@@ -748,16 +753,13 @@ export function InventoryPage() {
                     On Hand
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Reorder Level
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Severity
+                    Low Stock Threshold
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
                     Status
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Created
+                    Raised
                   </th>
                   <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
                     Actions
@@ -777,16 +779,13 @@ export function InventoryPage() {
                       {formatNumber(alert.quantity_on_hand)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500">
-                      {formatNumber(alert.reorder_level)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-center">
-                      <SeverityBadge severity={alert.severity} />
+                      {formatNumber(alert.low_stock_threshold)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-center">
                       <AlertStatusBadge status={alert.status} />
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {formatDateTime(alert.created_at)}
+                      {formatDateTime(alert.raised_at)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-center">
                       {alert.status === "ACTIVE" && (
@@ -800,11 +799,12 @@ export function InventoryPage() {
                               quantity_on_hand: alert.quantity_on_hand,
                               quantity_reserved: 0,
                               available_quantity: alert.quantity_on_hand,
-                              reorder_level: alert.reorder_level,
+                              low_stock_threshold: alert.low_stock_threshold,
+                              reorder_level: null,
                               stock_status: "LOW_STOCK",
-                              last_restock_date: null,
-                              last_count_date: null,
-                              updated_at: alert.created_at,
+                              last_restocked_at: null,
+                              last_sold_at: null,
+                              updated_at: alert.raised_at,
                             };
                             openRestock(mockItem);
                           }}
@@ -1181,9 +1181,9 @@ export function InventoryPage() {
                     </p>
                   </div>
                   <div className="rounded-lg border border-gray-200 p-3">
-                    <p className="text-xs text-gray-500">Reorder Level</p>
+                    <p className="text-xs text-gray-500">Low Stock Threshold</p>
                     <p className="text-xl font-bold text-gray-900">
-                      {formatNumber(productDetail?.reorder_level ?? 0)}
+                      {formatNumber(productDetail?.low_stock_threshold ?? 0)}
                     </p>
                   </div>
                 </div>
@@ -1195,16 +1195,16 @@ export function InventoryPage() {
                   <div>
                     <p className="text-xs text-gray-500">Last Restock</p>
                     <p className="text-sm text-gray-900">
-                      {productDetail?.last_restock_date
-                        ? formatDate(productDetail.last_restock_date)
+                      {productDetail?.last_restocked_at
+                        ? formatDate(productDetail.last_restocked_at)
                         : "Never"}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">Last Count</p>
+                    <p className="text-xs text-gray-500">Last Sold</p>
                     <p className="text-sm text-gray-900">
-                      {productDetail?.last_count_date
-                        ? formatDate(productDetail.last_count_date)
+                      {productDetail?.last_sold_at
+                        ? formatDate(productDetail.last_sold_at)
                         : "Never"}
                     </p>
                   </div>

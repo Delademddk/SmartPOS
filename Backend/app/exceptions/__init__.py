@@ -129,3 +129,7 @@ class SaleAlreadySettledError(ConflictError):
 
 class ReturnLimitExceededError(ConflictError):
     code = "RETURN_LIMIT_EXCEEDED"
+
+
+class ImageValidationError(BadRequestError):
+    code = "INVALID_IMAGE"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect, type ChangeEvent } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import {
   Trash2,
   X,
   Package,
+  PackagePlus,
   DollarSign,
   Filter,
   ChevronLeft,
@@ -25,13 +26,18 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { PageLoader } from "@/components/feedback/PageLoader";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Spinner } from "@/components/feedback/Spinner";
+import { ProductImage } from "@/components/ui/ProductImage";
 import { cn } from "@/utils/cn";
 import { formatCurrency, statusColor } from "@/utils/format";
-import type { Product, Category, Supplier, TaxRate, PaginatedResponse } from "@/types";
+import {
+  ACCEPTED_IMAGE_INPUT,
+  resolveImageUrl,
+  validateProductImage,
+} from "@/utils/image";
+import type { Product, Category, Supplier, PaginatedResponse } from "@/types";
 
 interface ProductCreatePayload {
   product_name: string;
-  product_code: string;
   sku: string;
   barcode?: string;
   description?: string;
@@ -39,13 +45,12 @@ interface ProductCreatePayload {
   supplier_id?: number;
   unit_price: number;
   cost_price: number;
-  tax_rate_id?: number;
-  reorder_level: number;
+  low_stock_threshold: number;
+  initial_quantity?: number;
 }
 
 interface ProductUpdatePayload {
   product_name?: string;
-  product_code?: string;
   sku?: string;
   barcode?: string;
   description?: string;
@@ -53,8 +58,7 @@ interface ProductUpdatePayload {
   supplier_id?: number;
   unit_price?: number;
   cost_price?: number;
-  tax_rate_id?: number;
-  reorder_level?: number;
+  low_stock_threshold?: number;
   is_active?: boolean;
 }
 
@@ -63,9 +67,26 @@ interface PriceUpdatePayload {
   cost_price: number;
 }
 
+type ApiError = Error & {
+  response?: { data?: { error?: { message?: string; details?: Array<{ message: string }> } } };
+};
+
+function getApiErrorMessage(error: ApiError, fallback: string): string {
+  const details = error.response?.data?.error?.details;
+  return details?.[0]?.message || error.response?.data?.error?.message || fallback;
+}
+
+function invalidateProductQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ["products"] });
+  queryClient.invalidateQueries({ queryKey: ["pos-products"] });
+  queryClient.invalidateQueries({ queryKey: ["inventory"] });
+  queryClient.invalidateQueries({ queryKey: ["inventory-movements"] });
+  queryClient.invalidateQueries({ queryKey: ["inventory-low-stock"] });
+  queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+}
+
 const productCreateSchema = z.object({
   product_name: z.string().min(1, "Product name is required"),
-  product_code: z.string().min(1, "Product code is required"),
   sku: z.string().min(1, "SKU is required"),
   barcode: z.string().optional(),
   description: z.string().optional(),
@@ -73,8 +94,8 @@ const productCreateSchema = z.object({
   supplier_id: z.number().min(1, "Supplier is required").optional().or(z.literal(0)),
   unit_price: z.number().min(0, "Unit price must be positive"),
   cost_price: z.number().min(0, "Cost price must be positive"),
-  tax_rate_id: z.number().min(1, "Tax rate is required").optional().or(z.literal(0)),
-  reorder_level: z.number().min(0, "Reorder level must be non-negative"),
+  low_stock_threshold: z.coerce.number().int("Threshold must be a whole number").min(0, "Low stock threshold must be non-negative"),
+  quantity: z.coerce.number().int("Quantity must be a whole number").min(0, "Quantity cannot be negative").optional(),
 });
 
 type ProductCreateForm = z.infer<typeof productCreateSchema>;
@@ -85,6 +106,14 @@ const priceUpdateSchema = z.object({
 });
 
 type PriceUpdateForm = z.infer<typeof priceUpdateSchema>;
+
+const restockSchema = z.object({
+  quantity: z.coerce.number().int("Quantity must be a whole number").positive("Quantity must be greater than zero"),
+  unit_cost: z.coerce.number().min(0, "Unit cost must be non-negative").optional(),
+  reason: z.string().max(255, "Reason is too long").optional(),
+});
+
+type RestockForm = z.infer<typeof restockSchema>;
 
 const STOCK_OPTIONS = [
   { value: "", label: "All Stock" },
@@ -107,6 +136,7 @@ export function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showPriceModal, setShowPriceModal] = useState<Product | null>(null);
+  const [restockProduct, setRestockProduct] = useState<Product | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("");
   const [filterSupplier, setFilterSupplier] = useState<string>("");
@@ -148,20 +178,11 @@ export function ProductsPage() {
     },
   });
 
-  const { data: taxRates } = useQuery({
-    queryKey: ["tax-rates-select"],
-    queryFn: async () => {
-      const params = new URLSearchParams({ page: "1", page_size: "200" });
-      const res = await apiGet<TaxRate[]>(`/tax-rates?${params}`);
-      return res.data;
-    },
-  });
-
   const archiveMutation = useMutation({
     mutationFn: (productId: number) => apiPost(`/products/${productId}/archive`),
     onSuccess: () => {
       toast.success("Product archived");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      invalidateProductQueries(queryClient);
     },
     onError: () => toast.error("Failed to archive product"),
   });
@@ -170,7 +191,7 @@ export function ProductsPage() {
     mutationFn: (productId: number) => apiDelete(`/products/${productId}`),
     onSuccess: () => {
       toast.success("Product deleted");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      invalidateProductQueries(queryClient);
     },
     onError: () => toast.error("Failed to delete product"),
   });
@@ -180,7 +201,7 @@ export function ProductsPage() {
       apiPut(`/products/${product.product_id}`, { is_active: true }),
     onSuccess: () => {
       toast.success("Product activated");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      invalidateProductQueries(queryClient);
     },
     onError: () => toast.error("Failed to activate product"),
   });
@@ -334,12 +355,20 @@ export function ProductsPage() {
               {productsData.data.map((product) => (
                 <tr key={product.product_id}>
                   <td>
-                    <div>
-                      <p className="font-medium">{product.product_name}</p>
-                      <p className="text-xs text-gray-500">
-                        {product.sku}
-                        {product.barcode ? ` · ${product.barcode}` : ""}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <ProductImage
+                        imageUrl={product.image_url}
+                        alt={product.product_name}
+                        className="h-10 w-10 shrink-0 rounded-lg border border-gray-100"
+                        iconClassName="h-5 w-5"
+                      />
+                      <div>
+                        <p className="font-medium">{product.product_name}</p>
+                        <p className="text-xs text-gray-500">
+                          {product.sku}
+                          {product.barcode ? ` · ${product.barcode}` : ""}
+                        </p>
+                      </div>
                     </div>
                   </td>
                   <td>
@@ -352,7 +381,7 @@ export function ProductsPage() {
                     {formatCurrency(product.unit_price)}
                   </td>
                   <td className="text-right text-sm text-gray-600">
-                    {formatCurrency(product.cost_price)}
+                    {formatCurrency(product.cost_price ?? 0)}
                   </td>
                   <td className="text-right">
                     <div className="flex flex-col items-end">
@@ -377,6 +406,13 @@ export function ProductsPage() {
                         title="Edit Price"
                       >
                         <DollarSign className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setRestockProduct(product)}
+                        className="btn-ghost btn-sm text-blue-600"
+                        title="Restock"
+                      >
+                        <PackagePlus className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => { setEditingProduct(product); setShowForm(true); }}
@@ -440,8 +476,8 @@ export function ProductsPage() {
           product={editingProduct}
           categories={categories || []}
           suppliers={suppliers || []}
-          taxRates={taxRates || []}
           onClose={() => { setShowForm(false); setEditingProduct(null); }}
+          onRestock={(product) => { setShowForm(false); setEditingProduct(null); setRestockProduct(product); }}
         />
       )}
 
@@ -449,6 +485,13 @@ export function ProductsPage() {
         <PriceModal
           product={showPriceModal}
           onClose={() => setShowPriceModal(null)}
+        />
+      )}
+
+      {restockProduct && (
+        <RestockModal
+          product={restockProduct}
+          onClose={() => setRestockProduct(null)}
         />
       )}
     </div>
@@ -467,11 +510,11 @@ interface ProductModalProps {
   product: Product | null;
   categories: Category[];
   suppliers: Supplier[];
-  taxRates: TaxRate[];
   onClose: () => void;
+  onRestock: (product: Product) => void;
 }
 
-function ProductModal({ product, categories, suppliers, taxRates, onClose }: ProductModalProps) {
+function ProductModal({ product, categories, suppliers, onClose, onRestock }: ProductModalProps) {
   const queryClient = useQueryClient();
   const isEdit = !!product;
 
@@ -484,29 +527,83 @@ function ProductModal({ product, categories, suppliers, taxRates, onClose }: Pro
     defaultValues: product
       ? {
           product_name: product.product_name,
-          product_code: product.product_code,
           sku: product.sku,
           barcode: product.barcode || "",
           description: product.description || "",
-          category_id: product.category_id,
+          category_id: product.category_id ?? 0,
           supplier_id: product.supplier_id || 0,
           unit_price: product.unit_price,
-          cost_price: product.cost_price,
-          tax_rate_id: product.tax_rate_id || 0,
-          reorder_level: product.reorder_level,
+          cost_price: product.cost_price ?? 0,
+          low_stock_threshold: product.low_stock_threshold,
         }
-      : {
-          unit_price: 0,
-          cost_price: 0,
-          reorder_level: 0,
-        },
+        : {
+            unit_price: 0,
+            cost_price: 0,
+            low_stock_threshold: 10,
+            quantity: 0,
+          },
   });
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(() =>
+    product?.image_url ? resolveImageUrl(product.image_url) : null,
+  );
+  const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+    const error = validateProductImage(file);
+    if (error) {
+      setImageError(error);
+      e.target.value = "";
+      return;
+    }
+    setImageError(null);
+    setRemoveCurrentImage(false);
+    setSelectedFile(file);
+    setImagePreview((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  };
+
+  const handleClearImage = () => {
+    setImageError(null);
+    setRemoveCurrentImage(false);
+    setSelectedFile(null);
+    setImagePreview((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return product?.image_url ? resolveImageUrl(product.image_url) : null;
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemoveCurrentImage = () => {
+    setImageError(null);
+    setSelectedFile(null);
+    setRemoveCurrentImage(true);
+    setImagePreview((prev) => {
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const mutation = useMutation({
     mutationFn: (data: ProductCreateForm) => {
       const payload: ProductCreatePayload = {
         product_name: data.product_name,
-        product_code: data.product_code,
         sku: data.sku,
         barcode: data.barcode || undefined,
         description: data.description || undefined,
@@ -514,36 +611,49 @@ function ProductModal({ product, categories, suppliers, taxRates, onClose }: Pro
         supplier_id: data.supplier_id && data.supplier_id > 0 ? data.supplier_id : undefined,
         unit_price: data.unit_price,
         cost_price: data.cost_price,
-        tax_rate_id: data.tax_rate_id && data.tax_rate_id > 0 ? data.tax_rate_id : undefined,
-        reorder_level: data.reorder_level,
+        low_stock_threshold: data.low_stock_threshold,
+        ...(!isEdit ? { initial_quantity: data.quantity ?? 0 } : {}),
       };
+
+      const multipartConfig = { headers: { "Content-Type": "multipart/form-data" } };
 
       if (isEdit && product) {
         const updatePayload: ProductUpdatePayload = {};
         if (payload.product_name !== product.product_name) updatePayload.product_name = payload.product_name;
-        if (payload.product_code !== product.product_code) updatePayload.product_code = payload.product_code;
         if (payload.sku !== product.sku) updatePayload.sku = payload.sku;
         if ((payload.barcode || "") !== (product.barcode || "")) updatePayload.barcode = payload.barcode;
         if ((payload.description || "") !== (product.description || "")) updatePayload.description = payload.description;
         if (payload.category_id !== product.category_id) updatePayload.category_id = payload.category_id;
         if ((payload.supplier_id || null) !== product.supplier_id) updatePayload.supplier_id = payload.supplier_id;
         if (payload.unit_price !== product.unit_price) updatePayload.unit_price = payload.unit_price;
-        if (payload.cost_price !== product.cost_price) updatePayload.cost_price = payload.cost_price;
-        if ((payload.tax_rate_id || null) !== product.tax_rate_id) updatePayload.tax_rate_id = payload.tax_rate_id;
-        if (payload.reorder_level !== product.reorder_level) updatePayload.reorder_level = payload.reorder_level;
+        if ((payload.cost_price ?? 0) !== (product.cost_price ?? 0)) updatePayload.cost_price = payload.cost_price;
+        if (payload.low_stock_threshold !== product.low_stock_threshold) updatePayload.low_stock_threshold = payload.low_stock_threshold;
+
+        if (selectedFile || removeCurrentImage) {
+          const formData = new FormData();
+          formData.append("data", JSON.stringify(updatePayload));
+          if (selectedFile) formData.append("image", selectedFile);
+          if (removeCurrentImage) formData.append("remove_image", "true");
+          return apiPut(`/products/${product.product_id}`, formData, multipartConfig);
+        }
         return apiPut(`/products/${product.product_id}`, updatePayload);
       }
 
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("data", JSON.stringify(payload));
+        formData.append("image", selectedFile);
+        return apiPost("/products", formData, multipartConfig);
+      }
       return apiPost("/products", payload);
     },
     onSuccess: () => {
       toast.success(isEdit ? "Product updated" : "Product created");
-      queryClient.invalidateQueries({ queryKey: ["products"] });
+      invalidateProductQueries(queryClient);
       onClose();
     },
-    onError: (error: Error & { response?: { data?: { error?: { details?: Array<{ message: string }> } } } }) => {
-      const msg = error.response?.data?.error?.details?.[0]?.message;
-      toast.error(msg || (isEdit ? "Failed to update product" : "Failed to create product"));
+    onError: (error: ApiError) => {
+      toast.error(getApiErrorMessage(error, isEdit ? "Failed to update product" : "Failed to create product"));
     },
   });
 
@@ -559,6 +669,58 @@ function ProductModal({ product, categories, suppliers, taxRates, onClose }: Pro
         <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="p-6 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
+              <label className="label">Product Image</label>
+              <div className="flex items-center gap-4">
+                <ProductImage
+                  imageUrl={removeCurrentImage ? null : imagePreview}
+                  alt={selectedFile?.name || product?.product_name || "Product image"}
+                  className="h-20 w-20 shrink-0 rounded-lg border border-gray-200"
+                  iconClassName="h-8 w-8"
+                />
+                <div className="flex flex-col gap-2">
+                  <label className="btn-secondary btn-sm cursor-pointer peer-focus:ring-2 peer-focus:ring-primary-500 peer-focus:ring-offset-2">
+                    {selectedFile
+                      ? "Change Image"
+                      : isEdit && product?.image_url
+                        ? "Replace Image"
+                        : "Choose Image"}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={ACCEPTED_IMAGE_INPUT}
+                      className="peer sr-only"
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                  {isEdit && product?.image_url && !selectedFile && !removeCurrentImage && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveCurrentImage}
+                      className="btn-ghost btn-sm text-red-600"
+                    >
+                      Remove Image
+                    </button>
+                  )}
+                  {(selectedFile || removeCurrentImage) && (
+                    <button
+                      type="button"
+                      onClick={handleClearImage}
+                      className="btn-ghost btn-sm text-gray-500"
+                    >
+                      {removeCurrentImage ? "Keep Current Image" : "Clear Selection"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {imageError && <p className="mt-1 text-xs text-red-600">{imageError}</p>}
+              {removeCurrentImage && !imageError && (
+                <p className="mt-1 text-xs text-amber-600">
+                  Current image will be removed when you save.
+                </p>
+              )}
+            </div>
+
+            <div className="sm:col-span-2">
               <label className="label">Product Name</label>
               <input
                 {...register("product_name")}
@@ -566,16 +728,6 @@ function ProductModal({ product, categories, suppliers, taxRates, onClose }: Pro
                 placeholder="e.g. Coca-Cola 500ml"
               />
               {errors.product_name && <p className="mt-1 text-xs text-red-600">{errors.product_name.message}</p>}
-            </div>
-
-            <div>
-              <label className="label">Product Code</label>
-              <input
-                {...register("product_code")}
-                className={cn("input", errors.product_code && "input-error")}
-                placeholder="e.g. CC-500"
-              />
-              {errors.product_code && <p className="mt-1 text-xs text-red-600">{errors.product_code.message}</p>}
             </div>
 
             <div>
@@ -648,30 +800,48 @@ function ProductModal({ product, categories, suppliers, taxRates, onClose }: Pro
               {errors.cost_price && <p className="mt-1 text-xs text-red-600">{errors.cost_price.message}</p>}
             </div>
 
-            <div>
-              <label className="label">Tax Rate</label>
-              <select
-                {...register("tax_rate_id", { valueAsNumber: true })}
-                className="input"
-              >
-                <option value={0}>Select tax rate (optional)</option>
-                {taxRates.map((tr) => (
-                  <option key={tr.tax_rate_id} value={tr.tax_rate_id}>
-                    {tr.tax_name} ({tr.rate_percent}%)
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isEdit && product ? (
+              <div className="flex items-end justify-between rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <div>
+                  <label className="label !mb-1">Current Stock</label>
+                  <p className="text-xl font-bold text-gray-900">{product.quantity_on_hand}</p>
+                  <p className="text-xs text-gray-500">
+                    To add more stock use the Restock action.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRestock(product)}
+                  className="btn-secondary btn-sm"
+                >
+                  <PackagePlus className="h-4 w-4" /> Restock
+                </button>
+              </div>
+            ) : (
+              <div>
+                <label className="label">Quantity</label>
+                <input
+                  {...register("quantity")}
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="0"
+                  className={cn("input", errors.quantity && "input-error")}
+                />
+                {errors.quantity && <p className="mt-1 text-xs text-red-600">{errors.quantity.message}</p>}
+              </div>
+            )}
 
             <div>
-              <label className="label">Reorder Level</label>
+              <label className="label">Low Stock Threshold</label>
               <input
-                {...register("reorder_level", { valueAsNumber: true })}
+                {...register("low_stock_threshold")}
                 type="number"
                 min="0"
-                className={cn("input", errors.reorder_level && "input-error")}
+                step="1"
+                className={cn("input", errors.low_stock_threshold && "input-error")}
               />
-              {errors.reorder_level && <p className="mt-1 text-xs text-red-600">{errors.reorder_level.message}</p>}
+              {errors.low_stock_threshold && <p className="mt-1 text-xs text-red-600">{errors.low_stock_threshold.message}</p>}
             </div>
 
             <div className="sm:col-span-2">
@@ -713,7 +883,7 @@ function PriceModal({ product, onClose }: PriceModalProps) {
     resolver: zodResolver(priceUpdateSchema),
     defaultValues: {
       unit_price: product.unit_price,
-      cost_price: product.cost_price,
+      cost_price: product.cost_price ?? 0,
     },
   });
 
@@ -799,6 +969,113 @@ function PriceModal({ product, onClose }: PriceModalProps) {
             <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
             <button type="submit" disabled={isSubmitting} className="btn-primary">
               {isSubmitting ? <Spinner size="sm" /> : "Update Price"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+interface RestockModalProps {
+  product: Product;
+  onClose: () => void;
+}
+
+function RestockModal({ product, onClose }: RestockModalProps) {
+  const queryClient = useQueryClient();
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RestockForm>({
+    resolver: zodResolver(restockSchema),
+    defaultValues: {
+      quantity: 0,
+      unit_cost: product.cost_price ?? undefined,
+      reason: "",
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: RestockForm) =>
+      apiPost("/inventory/restock", {
+        product_id: product.product_id,
+        quantity: data.quantity,
+        unit_cost: data.unit_cost,
+        reason: data.reason || undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Stock restocked successfully");
+      invalidateProductQueries(queryClient);
+      onClose();
+    },
+    onError: (error: ApiError) => {
+      toast.error(getApiErrorMessage(error, "Failed to restock product"));
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="card w-full max-w-md">
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h2 className="text-lg font-semibold">Restock Product</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="p-6 space-y-4">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Tag className="h-4 w-4" />
+            <span className="font-medium">{product.product_name}</span>
+            <span className="text-gray-400">({product.sku})</span>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+            <span className="text-sm text-gray-600">Current Stock</span>
+            <span className="text-lg font-bold text-gray-900">{product.quantity_on_hand}</span>
+          </div>
+
+          <div>
+            <label className="label">Quantity to Add</label>
+            <input
+              {...register("quantity")}
+              type="number"
+              min="1"
+              step="1"
+              className={cn("input", errors.quantity && "input-error")}
+              placeholder="e.g. 25"
+            />
+            {errors.quantity && <p className="mt-1 text-xs text-red-600">{errors.quantity.message}</p>}
+          </div>
+
+          <div>
+            <label className="label">Unit Cost (optional)</label>
+            <input
+              {...register("unit_cost")}
+              type="number"
+              min="0"
+              step="0.01"
+              className="input"
+            />
+            {errors.unit_cost && <p className="mt-1 text-xs text-red-600">{errors.unit_cost.message}</p>}
+          </div>
+
+          <div>
+            <label className="label">Reason (optional)</label>
+            <input
+              {...register("reason")}
+              className="input"
+              placeholder="e.g. Reorder from supplier"
+            />
+            {errors.reason && <p className="mt-1 text-xs text-red-600">{errors.reason.message}</p>}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+            <button type="submit" disabled={isSubmitting} className="btn-primary">
+              {isSubmitting ? <Spinner size="sm" /> : "Confirm Restock"}
             </button>
           </div>
         </form>

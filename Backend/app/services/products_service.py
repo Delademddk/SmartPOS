@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from fastapi import UploadFile
+
 from app.api.schemas.products import ProductCreate, ProductUpdate, PriceUpdate
 from app.core.constants import MovementType, StockStatus
 from app.exceptions import (
@@ -22,6 +24,7 @@ from app.repositories.catalog_repo import (
 from app.repositories.ops_repo import InventoryRepository, SaleItemRepository
 from app.services.audit_service import AuditService
 from app.services.base import BaseService
+from app.services.image_storage import get_image_storage_service
 from app.utils.pagination import PageParams
 
 
@@ -44,6 +47,7 @@ class ProductService(BaseService):
         self.inventory = InventoryRepository(session)
         self.sale_items = SaleItemRepository(session)
         self.audit = AuditService(session)
+        self.storage = get_image_storage_service()
 
     # ------------------------------------------------------------------
     def list(
@@ -81,12 +85,24 @@ class ProductService(BaseService):
             raise NotFoundError("Product not found.")
         return product
 
-    def create(self, payload: ProductCreate, actor: User) -> Product:
+    def create(
+        self,
+        payload: ProductCreate,
+        actor: User,
+        image: UploadFile | None = None,
+    ) -> Product:
         if self.products.get_by_sku(payload.sku):
             raise DuplicateResourceError("SKU already exists.", resource_type="Product")
         if payload.barcode and self.products.get_by_barcode(payload.barcode):
             raise DuplicateResourceError("Barcode already exists.", resource_type="Product")
         self._validate_references(payload.category_id, payload.supplier_id)
+
+        if image is not None:
+            image_url = self.storage.save_product_image(image)
+        elif payload.image_url:
+            image_url = payload.image_url
+        else:
+            image_url = None
 
         product = Product(
             sku=payload.sku.upper(),
@@ -98,6 +114,7 @@ class ProductService(BaseService):
             unit=payload.unit,
             unit_price=payload.unit_price,
             cost_price=payload.cost_price,
+            image_url=image_url,
             low_stock_threshold=payload.low_stock_threshold,
             is_service=payload.is_service,
             created_by=actor.user_id,
@@ -143,9 +160,38 @@ class ProductService(BaseService):
         self.session.commit()
         return self.products.get(product.product_id)
 
-    def update(self, product_id: int, payload: ProductUpdate, actor: User) -> Product:
+    def update(
+        self,
+        product_id: int,
+        payload: ProductUpdate,
+        actor: User,
+        image: UploadFile | None = None,
+        remove_image: bool = False,
+    ) -> Product:
         product = self.get(product_id)
         data = payload.model_dump(exclude_unset=True)
+        old_image_url = product.image_url
+
+        if remove_image and image is not None:
+            raise BadRequestError(
+                "Cannot replace and remove a product image at the same time.",
+                [{"field": "image", "message": "Provide either an image or remove_image, not both."}],
+            )
+
+        if remove_image:
+            product.image_url = None
+            if old_image_url:
+                self.storage.delete_product_image(old_image_url)
+        elif image is not None:
+            new_image_url = self.storage.save_product_image(image)
+            product.image_url = new_image_url
+            if old_image_url:
+                self.storage.delete_product_image(old_image_url)
+        elif "image_url" in data:
+            new_image_url = data["image_url"]
+            product.image_url = new_image_url
+            if old_image_url and old_image_url != new_image_url:
+                self.storage.delete_product_image(old_image_url)
 
         if "sku" in data and data["sku"]:
             sku = data["sku"].upper()

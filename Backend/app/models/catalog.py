@@ -54,6 +54,7 @@ class Product(TimestampMixin, AuditableMixin, SoftDeleteMixin, Base):
     unit: Mapped[str] = mapped_column(Unicode(20), nullable=False, default="pcs")
     unit_price: Mapped[float] = mapped_column(Numeric(19, 4), nullable=False, default=0)
     cost_price: Mapped[float | None] = mapped_column(Numeric(19, 4), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Unicode(500), nullable=True)
     low_stock_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     is_service: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

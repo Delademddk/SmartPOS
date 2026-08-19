@@ -6,8 +6,11 @@ under the configured `/api/v1` prefix.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routers import (
     audit,
@@ -66,6 +69,15 @@ def create_app() -> FastAPI:
     app.add_middleware(RateLimitMiddleware)
 
     install_exception_handlers(app)
+
+    if config.storage_provider == "local":
+        local_upload_dir = Path(config.local_upload_dir)
+        local_upload_dir.mkdir(parents=True, exist_ok=True)
+        app.mount(
+            "/uploads/products",
+            StaticFiles(directory=local_upload_dir),
+            name="product-images",
+        )
 
     prefix = config.api_v1_prefix
 
