@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Menu, Bell, ChevronDown, LogOut, User } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/hooks/useSettings";
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/api/client";
 import { getInitials } from "@/utils/format";
@@ -12,6 +13,7 @@ interface HeaderProps {
 
 export function Header({ onMenuToggle }: HeaderProps) {
   const { user, logout } = useAuth();
+  const { businessName } = useSettings();
   const navigate = useNavigate();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -33,6 +35,9 @@ export function Header({ onMenuToggle }: HeaderProps) {
         >
           <Menu className="h-5 w-5" />
         </button>
+        <span className="hidden text-sm font-semibold text-gray-900 md:block">
+          {businessName}
+        </span>
       </div>
 
       <div className="flex items-center gap-3">

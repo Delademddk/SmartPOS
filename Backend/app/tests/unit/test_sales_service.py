@@ -100,3 +100,68 @@ def test_void_sale_restores_stock(db_session, sale_setup, cashier) -> None:
 def test_get_missing_sale_raises(db_session, cashier) -> None:
     with pytest.raises(NotFoundError):
         SalesService(db_session).get(9999)
+
+
+def test_receipt_view_enriches_business_and_settings(db_session, sale_setup, cashier) -> None:
+    from app.models.business import BusinessInformation
+    from app.models.settings import Setting
+
+    product = sale_setup
+    service = SalesService(db_session)
+    sale = service.create_sale(_build_sale(product, qty=2), cashier)
+
+    db_session.add(
+        BusinessInformation(
+            business_name="Receipt Store",
+            address_line1="1 Main St",
+            address_line2="Suite 2",
+            phone="555-0100",
+            email="receipts@example.com",
+            currency_code="USD",
+            timezone="UTC",
+        )
+    )
+    db_session.add(
+        Setting(
+            setting_key="receipt_footer",
+            setting_value="Please come again!",
+            data_type="string",
+            category="general",
+        )
+    )
+    db_session.commit()
+
+    view = service.receipt_view(sale.receipt_number)
+
+    assert view["business_name"] == "Receipt Store"
+    assert view["business_address"] == "1 Main St Suite 2"
+    assert view["business_phone"] == "555-0100"
+    assert view["business_email"] == "receipts@example.com"
+    assert view["receipt_footer"] == "Please come again!"
+    assert view["cashier_name"] == cashier.full_name
+    assert view["subtotal"] == 4.0
+    assert view["total_amount"] == 4.0
+    assert view["amount_received"] == 100.0
+
+
+def test_receipt_view_falls_back_to_settings_when_no_profile(db_session, sale_setup, cashier) -> None:
+    from app.models.settings import Setting
+
+    product = sale_setup
+    service = SalesService(db_session)
+    sale = service.create_sale(_build_sale(product, qty=1), cashier)
+
+    db_session.add(
+        Setting(
+            setting_key="business_name",
+            setting_value="Fallback Name",
+            data_type="string",
+            category="general",
+        )
+    )
+    db_session.commit()
+
+    view = service.receipt_view(sale.receipt_number)
+
+    assert view["business_name"] == "Fallback Name"
+    assert view["business_address"] is None

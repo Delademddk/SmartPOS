@@ -4,6 +4,7 @@ import { Search, Eye, XCircle, ReceiptIcon, X, Calendar } from "lucide-react"
 import toast from "react-hot-toast"
 import { apiGet, apiPost } from "@/api/client"
 import { usePagination } from "@/hooks/usePagination"
+import { useSettings } from "@/hooks/useSettings"
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback"
 import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format"
 import type { Sale, Receipt, PaginatedResponse } from "@/types"
@@ -117,6 +118,9 @@ function SaleDetailModal({
 
   const queryClient = useQueryClient()
   const [voidModalOpen, setVoidModalOpen] = useState(false)
+  const { settings } = useSettings()
+  const showTaxLine = settings["receipt_show_tax"] !== "false"
+  const showDiscountLine = settings["receipt_show_discount"] !== "false"
 
   const voidMutation = useMutation({
     mutationFn: (data: VoidSaleRequest) => apiPost(`/sales/${saleId}/void`, data),
@@ -148,6 +152,7 @@ function SaleDetailModal({
           <h2>${receipt.business_name || ""}</h2>
           <p style="text-align:center;font-size:12px;">${receipt.business_address || ""}</p>
           <p style="text-align:center;font-size:12px;">${receipt.business_phone || ""}</p>
+          <p style="text-align:center;font-size:12px;">${receipt.business_email || ""}</p>
           <div class="line"></div>
           <p style="font-size:12px;">Receipt: ${receipt.receipt_number}</p>
           <p style="font-size:12px;">Cashier: ${receipt.cashier_name || ""}</p>
@@ -165,14 +170,14 @@ function SaleDetailModal({
           <div class="line"></div>
           <table>
             <tr><td>Subtotal</td><td style="text-align:right">${formatCurrency(receipt.subtotal)}</td></tr>
-            <tr><td>Tax</td><td style="text-align:right">${formatCurrency(receipt.tax_amount)}</td></tr>
-            ${receipt.discount_amount > 0 ? `<tr><td>Discount</td><td style="text-align:right">-${formatCurrency(receipt.discount_amount)}</td></tr>` : ""}
+            ${showTaxLine ? `<tr><td>Tax</td><td style="text-align:right">${formatCurrency(receipt.tax_amount)}</td></tr>` : ""}
+            ${showDiscountLine && receipt.discount_amount > 0 ? `<tr><td>Discount</td><td style="text-align:right">-${formatCurrency(receipt.discount_amount)}</td></tr>` : ""}
             <tr><td><strong>Total</strong></td><td style="text-align:right"><strong>${formatCurrency(receipt.total_amount)}</strong></td></tr>
             <tr><td>Received</td><td style="text-align:right">${formatCurrency(receipt.amount_received)}</td></tr>
             ${receipt.change_amount > 0 ? `<tr><td>Change</td><td style="text-align:right">${formatCurrency(receipt.change_amount)}</td></tr>` : ""}
           </table>
           <div class="line"></div>
-          <p style="text-align:center;font-size:12px;">Thank you!</p>
+          <p style="text-align:center;font-size:12px;">${receipt.receipt_footer || "Thank you!"}</p>
           </body></html>`)
         printWindow.document.close()
         printWindow.print()

@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "@/context/AuthContext";
 import { router } from "@/routes";
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
+import { useSettings } from "@/hooks/useSettings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,11 +16,17 @@ const queryClient = new QueryClient({
   },
 });
 
+function SettingsBootstrap() {
+  useSettings();
+  return null;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
+          <SettingsBootstrap />
           <RouterProvider router={router} />
         </AuthProvider>
 

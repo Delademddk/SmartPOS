@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user, require_permission
 from app.api.dependencies.database import get_db_session, get_pagination
 from app.api.schemas.sales import (
-    ReceiptRead,
     SaleCreate,
     SaleRead,
     VoidSaleRequest,
@@ -103,6 +102,6 @@ def get_sale_receipt(
     user: Annotated[User, Depends(require_permission(PermissionCode.SALES_VIEW))],
     db: Session = Depends(get_db_session),
 ) -> dict:
-    sale = SalesService(db).get(sale_id)
-    receipt = SalesService(db).get_receipt(sale.receipt_number)
-    return success_response(ReceiptRead.model_validate(receipt).model_dump())
+    service = SalesService(db)
+    sale = service.get(sale_id)
+    return success_response(service.receipt_view(sale.receipt_number))

@@ -364,20 +364,22 @@ export interface ErrorLog {
 }
 
 export interface BusinessInfo {
-  business_id: number;
+  business_info_id: number;
   business_name: string;
   legal_name: string | null;
   tax_id: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
   city: string | null;
   state: string | null;
   postal_code: string | null;
   country: string | null;
-  currency_id: number;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
   currency_code: string;
-  logo_url: string | null;
+  timezone: string;
+  is_active: boolean;
   updated_at: string;
 }
 
@@ -413,6 +415,15 @@ export type TaxRateUpdate = Partial<TaxRateCreate> & {
   is_active?: boolean;
 };
 
+export type SettingDataType = "string" | "int" | "decimal" | "bool" | "json";
+
+export type SettingCategory =
+  | "general"
+  | "tax"
+  | "notifications"
+  | "receipt"
+  | "system";
+
 export interface Setting {
   setting_id: number;
   setting_key: string;
@@ -438,8 +449,8 @@ export interface SettingRead {
 export interface SettingCreate {
   setting_key: string;
   setting_value?: string | null;
-  data_type?: string;
-  category?: string;
+  data_type?: SettingDataType;
+  category?: SettingCategory;
   description?: string | null;
 }
 
@@ -451,15 +462,17 @@ export interface BusinessInfoUpdate {
   business_name?: string;
   legal_name?: string | null;
   tax_id?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  address?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
   city?: string | null;
   state?: string | null;
   postal_code?: string | null;
   country?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
   currency_code?: string;
-  logo_url?: string | null;
+  timezone?: string;
 }
 
 export interface ReportRequest {
@@ -493,6 +506,22 @@ export interface DashboardKPIs {
   total_products_active: number;
 }
 
+export interface DashboardSalesTrendItem {
+  date: string;
+  weekday: string;
+  total_sales: number;
+  sale_count: number;
+}
+
+export interface DashboardTopProduct {
+  product_id: number;
+  product_name: string;
+  sku: string;
+  qty_sold: number;
+  revenue: number;
+  share_pct: number;
+}
+
 export interface Receipt {
   receipt_id: number;
   sale_id: number;
@@ -500,8 +529,10 @@ export interface Receipt {
   business_name: string;
   business_address: string | null;
   business_phone: string | null;
+  business_email: string | null;
   cashier_name: string;
   sale_date: string;
+  receipt_footer: string;
   items: SaleItem[];
   subtotal: number;
   tax_amount: number;

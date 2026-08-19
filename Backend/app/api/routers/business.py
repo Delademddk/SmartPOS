@@ -28,7 +28,7 @@ router = APIRouter(prefix="/business", tags=["Business"])
 
 @router.get("/info", response_model=dict)
 def get_business_info(
-    user: Annotated[User, Depends(require_permission(PermissionCode.SETTINGS_VIEW))],
+    user: Annotated[User, Depends(get_current_user)],
     db: Session = Depends(get_db_session),
 ) -> dict:
     return success_response(BusinessInfoRead.model_validate(BusinessService(db).get_business_info()).model_dump())

@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies.auth import require_permission
+from app.api.dependencies.auth import get_current_user, require_permission
 from app.api.dependencies.database import get_db_session
 from app.api.schemas.settings import SettingCreate, SettingRead, SettingUpdate
 from app.core.constants import PermissionCode
@@ -16,6 +16,31 @@ from app.services.business_service import BusinessService
 from app.utils.response import success_response
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
+
+PUBLIC_SETTING_KEYS = {
+    "currency_symbol",
+    "business_name",
+    "receipt_footer",
+    "receipt_show_tax",
+    "receipt_show_discount",
+    "default_tax_rate_id",
+    "timezone",
+    "low_stock_threshold_default",
+}
+
+
+@router.get("/public", response_model=dict)
+def get_public_settings(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db_session),
+) -> dict:
+    """Display settings readable by any authenticated user (cashiers included)."""
+    public = [
+        s
+        for s in BusinessService(db).list_settings()
+        if s.setting_key in PUBLIC_SETTING_KEYS
+    ]
+    return success_response([SettingRead.model_validate(s).model_dump() for s in public])
 
 
 @router.get("", response_model=dict)

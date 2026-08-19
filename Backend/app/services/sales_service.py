@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
-from app.api.schemas.sales import SaleCreate, SaleRead
+from app.api.schemas.sales import ReceiptRead, SaleCreate, SaleRead
 from app.core.constants import (
     MovementType,
     NotificationSeverity,
@@ -40,6 +40,7 @@ from app.repositories.ops_repo import (
 from app.repositories.system_repo import NotificationRepository, NotificationTypeRepository
 from app.services.audit_service import AuditService
 from app.services.base import BaseService
+from app.services.business_service import BusinessService
 from app.services.credits_service import CreditService
 from app.services.inventory_service import InventoryService
 from app.services.notifications_service import NotificationService
@@ -356,6 +357,56 @@ class SalesService(BaseService):
         if receipt is None:
             raise NotFoundError("Receipt not found.")
         return receipt
+
+    def receipt_view(self, receipt_number: str) -> dict:
+        """Return the receipt payload enriched with business profile and settings.
+
+        The frontend receipt printer expects the business identity, the
+        flattened monetary totals and the configured receipt footer so that
+        changes made in Settings immediately affect printed receipts.
+        """
+        receipt = self.get_receipt(receipt_number)
+        data = ReceiptRead.model_validate(receipt).model_dump()
+
+        info = None
+        settings_map: dict[str, str | None] = {}
+        try:
+            business_service = BusinessService(self.session)
+            settings_map = {
+                s.setting_key: s.setting_value for s in business_service.list_settings()
+            }
+        except NotFoundError:
+            pass
+        try:
+            business_service = BusinessService(self.session)
+            info = business_service.get_business_info()
+        except NotFoundError:
+            pass
+
+        address = None
+        if info is not None:
+            address = " ".join(
+                part for part in (info.address_line1, info.address_line2) if part
+            ).strip() or None
+
+        sale = receipt.sale
+        data.update(
+            {
+                "business_name": (info.business_name if info else None)
+                or settings_map.get("business_name"),
+                "business_address": address,
+                "business_phone": info.phone if info else None,
+                "business_email": info.email if info else None,
+                "receipt_footer": settings_map.get("receipt_footer"),
+                "cashier_name": sale.cashier_name if sale else None,
+                "sale_date": sale.sale_date.isoformat() if sale else None,
+                "subtotal": float(receipt.gross_total),
+                "total_amount": float(receipt.net_total),
+                "amount_received": float(receipt.amount_paid),
+                "change_amount": float(receipt.change_due),
+            }
+        )
+        return data
 
     # ------------------------------------------------------------------
     # Helpers

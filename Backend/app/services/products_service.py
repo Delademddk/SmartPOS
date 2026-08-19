@@ -104,6 +104,11 @@ class ProductService(BaseService):
         else:
             image_url = None
 
+        sent_fields = payload.model_dump(exclude_unset=True)
+        low_stock_threshold = payload.low_stock_threshold
+        if "low_stock_threshold" not in sent_fields:
+            low_stock_threshold = self._default_low_stock_threshold()
+
         product = Product(
             sku=payload.sku.upper(),
             barcode=payload.barcode,
@@ -115,7 +120,7 @@ class ProductService(BaseService):
             unit_price=payload.unit_price,
             cost_price=payload.cost_price,
             image_url=image_url,
-            low_stock_threshold=payload.low_stock_threshold,
+            low_stock_threshold=low_stock_threshold,
             is_service=payload.is_service,
             created_by=actor.user_id,
             updated_by=actor.user_id,
@@ -294,6 +299,18 @@ class ProductService(BaseService):
         )
         self.session.commit()
         return self.products.get(product.product_id)
+
+    def _default_low_stock_threshold(self) -> int:
+        """Read the configured default low-stock threshold for new products."""
+        from app.repositories.system_repo import SettingRepository
+
+        setting = SettingRepository(self.session).get_by_key("low_stock_threshold_default")
+        if setting and setting.setting_value is not None:
+            try:
+                return int(setting.setting_value)
+            except ValueError:
+                pass
+        return 10
 
     def _validate_references(self, category_id: int | None, supplier_id: int | None) -> None:
         if category_id is not None:

@@ -25,6 +25,7 @@ import type {
   SettingRead,
   SettingCreate,
   SettingUpdate,
+  SettingCategory,
 } from "@/types"
 
 const businessInfoSchema = z.object({
@@ -33,13 +34,15 @@ const businessInfoSchema = z.object({
   tax_id: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().optional(),
-  address: z.string().optional(),
+  address_line1: z.string().optional(),
+  address_line2: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
   postal_code: z.string().optional(),
   country: z.string().optional(),
+  website: z.string().url("Invalid URL").optional().or(z.literal("")),
   currency_code: z.string().optional(),
-  logo_url: z.string().url("Invalid URL").optional().or(z.literal("")),
+  timezone: z.string().optional(),
 })
 
 type BusinessInfoForm = z.infer<typeof businessInfoSchema>
@@ -59,8 +62,8 @@ type TaxRateForm = z.infer<typeof taxRateSchema>
 const settingSchema = z.object({
   setting_key: z.string().min(1, "Key is required"),
   setting_value: z.string().min(1, "Value is required"),
-  data_type: z.enum(["string", "number", "boolean", "json"]),
-  category: z.string().min(1, "Category is required"),
+  data_type: z.enum(["string", "int", "decimal", "bool", "json"]),
+  category: z.enum(["general", "tax", "notifications", "receipt", "system"]),
   description: z.string().optional(),
 })
 
@@ -68,7 +71,7 @@ type SettingForm = z.infer<typeof settingSchema>
 
 type Tab = "business" | "tax" | "settings"
 
-const CATEGORIES = ["general", "appearance", "receipt", "notifications", "integrations"]
+const CATEGORIES: SettingCategory[] = ["general", "tax", "notifications", "receipt", "system"]
 
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("business")
@@ -148,13 +151,15 @@ function BusinessInfoTab() {
         tax_id: businessInfo.tax_id ?? "",
         email: businessInfo.email ?? "",
         phone: businessInfo.phone ?? "",
-        address: businessInfo.address ?? "",
+        address_line1: businessInfo.address_line1 ?? "",
+        address_line2: businessInfo.address_line2 ?? "",
         city: businessInfo.city ?? "",
         state: businessInfo.state ?? "",
         postal_code: businessInfo.postal_code ?? "",
         country: businessInfo.country ?? "",
+        website: businessInfo.website ?? "",
         currency_code: businessInfo.currency_code ?? "",
-        logo_url: businessInfo.logo_url ?? "",
+        timezone: businessInfo.timezone ?? "",
       })
       setIsEditing(true)
     }
@@ -164,7 +169,8 @@ function BusinessInfoTab() {
     const payload: BusinessInfoUpdate = {
       ...data,
       email: data.email || undefined,
-      logo_url: data.logo_url || undefined,
+      website: data.website || undefined,
+      timezone: data.timezone || undefined,
     }
     updateMutation.mutate(payload)
   }
@@ -175,13 +181,15 @@ function BusinessInfoTab() {
     { label: "Tax ID", name: "tax_id" },
     { label: "Email", name: "email", type: "email" },
     { label: "Phone", name: "phone" },
-    { label: "Address", name: "address" },
+    { label: "Address Line 1", name: "address_line1" },
+    { label: "Address Line 2", name: "address_line2" },
     { label: "City", name: "city" },
     { label: "State", name: "state" },
     { label: "Postal Code", name: "postal_code" },
     { label: "Country", name: "country" },
+    { label: "Website", name: "website" },
     { label: "Currency Code", name: "currency_code" },
-    { label: "Logo URL", name: "logo_url" },
+    { label: "Timezone", name: "timezone" },
   ]
 
   if (isEditing) {
@@ -240,13 +248,6 @@ function BusinessInfoTab() {
         </button>
       </div>
       <div className="bg-white border border-gray-200 rounded-lg p-6">
-        {businessInfo?.logo_url && (
-          <img
-            src={businessInfo.logo_url}
-            alt="Business Logo"
-            className="h-16 mb-4 object-contain"
-          />
-        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {[
             { label: "Business Name", value: businessInfo?.business_name },
@@ -254,12 +255,15 @@ function BusinessInfoTab() {
             { label: "Tax ID", value: businessInfo?.tax_id },
             { label: "Email", value: businessInfo?.email },
             { label: "Phone", value: businessInfo?.phone },
-            { label: "Address", value: businessInfo?.address },
+            { label: "Address Line 1", value: businessInfo?.address_line1 },
+            { label: "Address Line 2", value: businessInfo?.address_line2 },
             { label: "City", value: businessInfo?.city },
             { label: "State", value: businessInfo?.state },
             { label: "Postal Code", value: businessInfo?.postal_code },
             { label: "Country", value: businessInfo?.country },
+            { label: "Website", value: businessInfo?.website },
             { label: "Currency", value: businessInfo?.currency_code },
+            { label: "Timezone", value: businessInfo?.timezone },
             {
               label: "Last Updated",
               value: businessInfo?.updated_at
@@ -552,7 +556,7 @@ function TaxRatesTab() {
 
 function AppSettingsTab() {
   const queryClient = useQueryClient()
-  const [selectedCategory, setSelectedCategory] = useState("general")
+  const [selectedCategory, setSelectedCategory] = useState<SettingCategory>("general")
   const [showForm, setShowForm] = useState(false)
   const [editingKey, setEditingKey] = useState<string | null>(null)
 
@@ -567,7 +571,7 @@ function AppSettingsTab() {
   const createMutation = useMutation({
     mutationFn: (data: SettingCreate) => apiPost("/settings", data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", selectedCategory] })
+      queryClient.invalidateQueries({ queryKey: ["settings"] })
       toast.success("Setting created")
       setShowForm(false)
     },
@@ -578,7 +582,7 @@ function AppSettingsTab() {
     mutationFn: ({ key, data }: { key: string; data: SettingUpdate }) =>
       apiPut(`/settings/${key}`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", selectedCategory] })
+      queryClient.invalidateQueries({ queryKey: ["settings"] })
       toast.success("Setting updated")
       setShowForm(false)
       setEditingKey(null)
@@ -589,7 +593,7 @@ function AppSettingsTab() {
   const deleteMutation = useMutation({
     mutationFn: (key: string) => apiDelete(`/settings/${key}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", selectedCategory] })
+      queryClient.invalidateQueries({ queryKey: ["settings"] })
       toast.success("Setting deleted")
     },
     onError: () => toast.error("Failed to delete setting"),
@@ -612,8 +616,8 @@ function AppSettingsTab() {
     reset({
       setting_key: setting.setting_key,
       setting_value: setting.setting_value ?? "",
-      data_type: setting.data_type as "string" | "number" | "boolean" | "json",
-      category: setting.category,
+      data_type: setting.data_type as "string" | "int" | "decimal" | "bool" | "json",
+      category: setting.category as SettingCategory,
       description: setting.description ?? "",
     })
     setShowForm(true)
@@ -737,8 +741,9 @@ function AppSettingsTab() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="string">String</option>
-                  <option value="number">Number</option>
-                  <option value="boolean">Boolean</option>
+                  <option value="int">Integer</option>
+                  <option value="decimal">Decimal</option>
+                  <option value="bool">Boolean</option>
                   <option value="json">JSON</option>
                 </select>
               </div>
@@ -746,7 +751,7 @@ function AppSettingsTab() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Value
                 </label>
-                {dataTypeValue === "boolean" ? (
+                {dataTypeValue === "bool" ? (
                   <select
                     {...register("setting_value")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -762,7 +767,12 @@ function AppSettingsTab() {
                   />
                 ) : (
                   <input
-                    type={dataTypeValue === "number" ? "number" : "text"}
+                    type={
+                      dataTypeValue === "int" || dataTypeValue === "decimal"
+                        ? "number"
+                        : "text"
+                    }
+                    step={dataTypeValue === "decimal" ? "0.01" : "1"}
                     {...register("setting_value")}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
@@ -843,7 +853,7 @@ function AppSettingsTab() {
                     {setting.setting_key}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
-                    {setting.data_type === "boolean" ? (
+                    {setting.data_type === "bool" ? (
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                           setting.setting_value === "true"

@@ -1,5 +1,18 @@
-export function formatCurrency(amount: number, symbol = "$"): string {
-  return `${symbol}${amount.toLocaleString("en-US", {
+let activeCurrencySymbol = "$";
+
+/**
+ * Sets the active currency symbol used by formatCurrency when no symbol is
+ * passed explicitly. Called by the settings bootstrap once display settings
+ * are loaded from the server.
+ */
+export function setCurrencySymbol(symbol: string): void {
+  const next = symbol.trim();
+  activeCurrencySymbol = next.length > 0 ? next : "$";
+}
+
+export function formatCurrency(amount: number | null | undefined, symbol = activeCurrencySymbol): string {
+  const value = amount ?? 0;
+  return `${symbol}${value.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

@@ -19,7 +19,11 @@ from app.exceptions import (
 from app.models.business import BusinessInformation, TaxRate
 from app.models.settings import Setting
 from app.models.users import User
-from app.repositories.catalog_repo import BusinessInfoRepository, TaxRateRepository
+from app.repositories.catalog_repo import (
+    BusinessInfoRepository,
+    CurrencyRepository,
+    TaxRateRepository,
+)
 from app.repositories.system_repo import SettingRepository
 from app.services.audit_service import AuditService
 from app.services.base import BaseService
@@ -83,6 +87,7 @@ class BusinessService(BaseService):
             if value is not None:
                 setattr(info, field, value)
         info.updated_by = actor.user_id
+        self._sync_display_settings(info, data, actor)
         self.audit.record(
             action_type="UPDATE",
             resource_type="Business",
@@ -92,6 +97,28 @@ class BusinessService(BaseService):
         )
         self.session.commit()
         return self.business.get_single()
+
+    def _sync_display_settings(
+        self, info: BusinessInformation, data: dict, actor: User
+    ) -> None:
+        """Keep the display settings in sync with the business profile.
+
+        The business profile is the canonical source for the business name and
+        currency; the ``settings`` table mirrors them so the display layer
+        (header, POS, receipts) consumes a single, consistent value.
+        """
+        if "business_name" in data and data["business_name"]:
+            setting = self.settings.get_by_key("business_name")
+            if setting is not None:
+                setting.setting_value = data["business_name"]
+                setting.updated_by = actor.user_id
+        if "currency_code" in data and data["currency_code"]:
+            currency = CurrencyRepository(self.session).get_by_code(data["currency_code"])
+            if currency is not None:
+                setting = self.settings.get_by_key("currency_symbol")
+                if setting is not None:
+                    setting.setting_value = currency.symbol
+                    setting.updated_by = actor.user_id
 
     # ------------------------------------------------------------------
     # Tax rates
@@ -207,6 +234,7 @@ class BusinessService(BaseService):
             if field in data and data[field] is not None:
                 setattr(setting, field, data[field])
         setting.updated_by = actor.user_id
+        self._sync_business_profile(key, data, actor)
         self.audit.activity(
             activity_type="SETTING_UPDATED",
             activity_desc=f"Updated setting {setting.setting_key}",
@@ -216,6 +244,16 @@ class BusinessService(BaseService):
         )
         self.session.commit()
         return self.settings.get(setting.setting_id)
+
+    def _sync_business_profile(self, key: str, data: dict, actor: User) -> None:
+        """Mirror display settings edited in the Settings page back to the
+        business profile so the two storage locations stay consistent."""
+        if key != "business_name" or "setting_value" not in data:
+            return
+        info = self.business.get_single()
+        if info is not None:
+            info.business_name = data["setting_value"]
+            info.updated_by = actor.user_id
 
     def delete_setting(self, key: str, actor: User) -> None:
         setting = self.get_setting(key)

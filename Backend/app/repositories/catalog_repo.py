@@ -29,6 +29,11 @@ class BusinessInfoRepository(BaseRepository[BusinessInformation]):
 class CurrencyRepository(BaseRepository[Currency]):
     model = Currency
 
+    def get_by_code(self, code: str) -> Currency | None:
+        return self.session.scalar(
+            select(Currency).where(Currency.currency_code == code.upper())
+        )
+
 
 class TaxRateRepository(BaseRepository[TaxRate]):
     model = TaxRate
