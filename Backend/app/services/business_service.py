@@ -9,6 +9,13 @@ from app.api.schemas.business import (
 )
 from app.api.schemas.settings import SettingCreate, SettingUpdate
 from app.core.constants import SettingDataType
+from app.core.currency import (
+    DEFAULT_CURRENCY_CODE,
+    DEFAULT_CURRENCY_DECIMAL_PLACES,
+    DEFAULT_CURRENCY_LOCALE,
+    DEFAULT_CURRENCY_SYMBOL,
+    locale_for_currency,
+)
 from app.exceptions import (
     BadRequestError,
     CannotDeleteInUseError,
@@ -16,7 +23,7 @@ from app.exceptions import (
     NotFoundError,
     ValidationError_,
 )
-from app.models.business import BusinessInformation, TaxRate
+from app.models.business import BusinessInformation, Currency, TaxRate
 from app.models.settings import Setting
 from app.models.users import User
 from app.repositories.catalog_repo import (
@@ -29,6 +36,14 @@ from app.services.audit_service import AuditService
 from app.services.base import BaseService
 
 _JSON_SCHEMA_TYPES = {SettingDataType.STRING.value, SettingDataType.JSON.value}
+
+_CURRENCY_SETTING_DESCRIPTIONS = {
+    "currency_symbol": "Symbol displayed next to amounts across the UI and receipts",
+    "currency_code": "ISO currency code used across the entire application",
+    "currency_locale": "Locale used for currency formatting",
+}
+
+_CURRENCY_MIRROR_KEYS = frozenset(_CURRENCY_SETTING_DESCRIPTIONS)
 
 
 def _validate_setting_value(data_type: str, value: str | None) -> None:
@@ -83,6 +98,8 @@ class BusinessService(BaseService):
             info = BusinessInformation(business_name="SmartPOS Store")
             self.business.add(info)
         data = payload.model_dump(exclude_unset=True)
+        if "currency_code" in data and data["currency_code"]:
+            data["currency_code"] = self._ensure_currency(data["currency_code"]).currency_code
         for field, value in data.items():
             if value is not None:
                 setattr(info, field, value)
@@ -115,10 +132,99 @@ class BusinessService(BaseService):
         if "currency_code" in data and data["currency_code"]:
             currency = CurrencyRepository(self.session).get_by_code(data["currency_code"])
             if currency is not None:
-                setting = self.settings.get_by_key("currency_symbol")
-                if setting is not None:
-                    setting.setting_value = currency.symbol
-                    setting.updated_by = actor.user_id
+                self._sync_currency_settings(currency, actor)
+
+    # ------------------------------------------------------------------
+    # Currency configuration
+    # ------------------------------------------------------------------
+    def get_currency_config(self) -> dict[str, object]:
+        """Return the active application currency configuration.
+
+        The authoritative currency is ``business_information.currency_code``.
+        The symbol/decimal places come from the ``currencies`` catalogue and
+        the locale from the centralized currency configuration module.
+        """
+        info = self.business.get_single()
+        code = (info.currency_code if info else DEFAULT_CURRENCY_CODE) or DEFAULT_CURRENCY_CODE
+        currency = CurrencyRepository(self.session).get_by_code(code)
+        if currency is None or not currency.is_active:
+            currency = CurrencyRepository(self.session).get_by_code(DEFAULT_CURRENCY_CODE)
+        if currency is None:
+            return {
+                "currency_code": DEFAULT_CURRENCY_CODE,
+                "currency_symbol": DEFAULT_CURRENCY_SYMBOL,
+                "currency_locale": DEFAULT_CURRENCY_LOCALE,
+                "decimal_places": DEFAULT_CURRENCY_DECIMAL_PLACES,
+            }
+        return {
+            "currency_code": currency.currency_code,
+            "currency_symbol": currency.symbol,
+            "currency_locale": locale_for_currency(currency.currency_code),
+            "decimal_places": currency.decimal_places,
+        }
+
+    def _ensure_currency(self, currency_code: str) -> Currency:
+        """Validate a requested currency and return the active catalogue row."""
+        code = currency_code.strip().upper()
+        if len(code) != 3:
+            raise ValidationError_(
+                "Currency code must be a 3-letter ISO code.",
+                [{"field": "currency_code", "message": "Expected a 3-letter ISO code"}],
+            )
+        currency = CurrencyRepository(self.session).get_by_code(code)
+        if currency is None or not currency.is_active:
+            raise ValidationError_(
+                f"Unsupported currency code '{code}'.",
+                [{"field": "currency_code", "message": "Currency is not supported"}],
+            )
+        return currency
+
+    def _sync_currency_settings(self, currency: Currency, actor: User) -> None:
+        """Mirror the canonical currency into the display ``settings`` rows."""
+        rows = {
+            "currency_symbol": currency.symbol,
+            "currency_code": currency.currency_code,
+            "currency_locale": locale_for_currency(currency.currency_code),
+        }
+        for key, value in rows.items():
+            setting = self.settings.get_by_key(key)
+            if setting is None:
+                setting = Setting(
+                    setting_key=key,
+                    setting_value=value,
+                    data_type=SettingDataType.STRING.value,
+                    category="general",
+                    description=_CURRENCY_SETTING_DESCRIPTIONS.get(key),
+                    created_by=actor.user_id,
+                    updated_by=actor.user_id,
+                )
+                self.settings.add(setting)
+            else:
+                setting.setting_value = value
+                setting.updated_by = actor.user_id
+
+    def update_currency(self, currency_code: str, actor: User) -> dict[str, object]:
+        """Set the global application currency and persist it to the database."""
+        currency = self._ensure_currency(currency_code)
+        info = self.business.get_single()
+        if info is None:
+            info = BusinessInformation(
+                business_name="SmartPOS Store",
+                currency_code=currency.currency_code,
+            )
+            self.business.add(info)
+        info.currency_code = currency.currency_code
+        info.updated_by = actor.user_id
+        self._sync_currency_settings(currency, actor)
+        self.audit.activity(
+            activity_type="CURRENCY_UPDATED",
+            activity_desc=f"Application currency changed to {currency.currency_code}",
+            entity_type="Currency",
+            entity_id=currency.currency_id,
+            user_id=actor.user_id,
+        )
+        self.session.commit()
+        return self.get_currency_config()
 
     # ------------------------------------------------------------------
     # Tax rates
@@ -200,6 +306,11 @@ class BusinessService(BaseService):
         return setting
 
     def create_setting(self, payload: SettingCreate, actor: User) -> Setting:
+        if payload.setting_key in _CURRENCY_MIRROR_KEYS:
+            raise ValidationError_(
+                f"'{payload.setting_key}' is managed by the application currency and cannot be created directly.",
+                [{"field": "setting_key", "message": "Setting is managed by the application currency"}],
+            )
         if self.settings.get_by_key(payload.setting_key):
             raise DuplicateResourceError("Setting key already exists.", resource_type="Setting")
         _validate_setting_value(payload.data_type, payload.setting_value)
@@ -224,6 +335,8 @@ class BusinessService(BaseService):
         return self.settings.get(setting.setting_id)
 
     def update_setting(self, key: str, payload: SettingUpdate, actor: User) -> Setting:
+        if key in _CURRENCY_MIRROR_KEYS:
+            return self._update_currency_setting(key, payload, actor)
         setting = self.get_setting(key)
         data = payload.model_dump(exclude_unset=True)
         data_type = data.get("data_type") or setting.data_type
@@ -245,6 +358,24 @@ class BusinessService(BaseService):
         self.session.commit()
         return self.settings.get(setting.setting_id)
 
+    def _update_currency_setting(self, key: str, payload: SettingUpdate, actor: User) -> Setting:
+        """Route generic edits of currency mirror settings through the canonical
+        application currency flow so the single source of truth is preserved."""
+        if key == "currency_code":
+            value = payload.setting_value
+            if value is None or not value.strip():
+                raise ValidationError_(
+                    "Currency code is required.",
+                    [{"field": "setting_value", "message": "Expected a currency code"}],
+                )
+            self.update_currency(value, actor)
+            return self.get_setting(key)
+        raise ValidationError_(
+            f"'{key}' is derived from the application currency and cannot be edited directly. "
+            "Use the Currency setting instead.",
+            [{"field": "setting_value", "message": "Setting is managed by the application currency"}],
+        )
+
     def _sync_business_profile(self, key: str, data: dict, actor: User) -> None:
         """Mirror display settings edited in the Settings page back to the
         business profile so the two storage locations stay consistent."""
@@ -256,6 +387,11 @@ class BusinessService(BaseService):
             info.updated_by = actor.user_id
 
     def delete_setting(self, key: str, actor: User) -> None:
+        if key in _CURRENCY_MIRROR_KEYS:
+            raise ValidationError_(
+                f"'{key}' is managed by the application currency and cannot be deleted.",
+                [{"field": "setting_key", "message": "Setting is managed by the application currency"}],
+            )
         setting = self.get_setting(key)
         self.settings.delete(setting)
         self.audit.activity(

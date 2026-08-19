@@ -1,21 +1,90 @@
-let activeCurrencySymbol = "$";
-
-/**
- * Sets the active currency symbol used by formatCurrency when no symbol is
- * passed explicitly. Called by the settings bootstrap once display settings
- * are loaded from the server.
- */
-export function setCurrencySymbol(symbol: string): void {
-  const next = symbol.trim();
-  activeCurrencySymbol = next.length > 0 ? next : "$";
+export interface CurrencyConfig {
+  code: string;
+  symbol: string;
+  locale: string;
+  decimalPlaces: number;
 }
 
-export function formatCurrency(amount: number | null | undefined, symbol = activeCurrencySymbol): string {
+const SUPPORTED_CURRENCY_CODES = new Set(["USD", "GHS", "EUR", "GBP", "NGN"]);
+
+const DEFAULT_CURRENCY: CurrencyConfig = {
+  code: "USD",
+  symbol: "$",
+  locale: "en-US",
+  decimalPlaces: 2,
+};
+
+let activeCurrency: CurrencyConfig = DEFAULT_CURRENCY;
+const currencyListeners = new Set<() => void>();
+
+function normalizeCode(code: string): string | null {
+  const trimmed = code.trim().toUpperCase();
+  return SUPPORTED_CURRENCY_CODES.has(trimmed) ? trimmed : null;
+}
+
+/**
+ * Sets the active application currency configuration used by formatCurrency.
+ * The value comes from the backend (authoritative application setting) and is
+ * kept in sync by the settings layer. Falls back to the USD default whenever
+ * the code is empty or unsupported.
+ */
+export function setCurrencyConfig(config: Partial<CurrencyConfig>): void {
+  const code = normalizeCode(config.code ?? "");
+  activeCurrency = code ? { ...DEFAULT_CURRENCY, ...config, code } : { ...DEFAULT_CURRENCY };
+  currencyListeners.forEach((listener) => listener());
+}
+
+export function getCurrencyConfig(): CurrencyConfig {
+  return activeCurrency;
+}
+
+export function subscribeCurrency(listener: () => void): () => void {
+  currencyListeners.add(listener);
+  return () => {
+    currencyListeners.delete(listener);
+  };
+}
+
+/**
+ * Formats a numeric amount with an explicit currency configuration. Internal
+ * canonical implementation shared by formatCurrency and the settings layer so
+ * there is exactly one currency-formatting routine.
+ */
+export function formatCurrencyWithConfig(
+  amount: number | null | undefined,
+  config: CurrencyConfig,
+): string {
   const value = amount ?? 0;
-  return `${symbol}${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const { code, locale, decimalPlaces } = config;
+  if (!SUPPORTED_CURRENCY_CODES.has(code)) {
+    return `${config.symbol}${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: decimalPlaces,
+      maximumFractionDigits: decimalPlaces,
+    }).format(value);
+  } catch {
+    return `${config.symbol}${value.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+}
+
+/**
+ * Formats a numeric amount with the active application currency. This is the
+ * single canonical currency-formatting utility; every monetary display in the
+ * application goes through it. Safe to call before settings load (defaults to
+ * USD and never throws on null/undefined/loading states).
+ */
+export function formatCurrency(amount: number | null | undefined): string {
+  return formatCurrencyWithConfig(amount, activeCurrency);
 }
 
 export function formatDate(dateStr: string): string {

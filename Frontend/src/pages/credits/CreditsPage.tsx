@@ -9,6 +9,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client"
 import { usePagination } from "@/hooks/usePagination"
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback"
 import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format"
+import { useCurrency } from "@/hooks/useCurrency"
 import type { CreditSale, Customer, CreditPayment, PaymentMethod, PaginatedResponse } from "@/types"
 
 const customerSchema = z.object({
@@ -35,6 +36,7 @@ const STATUS_OPTIONS = ["OPEN", "PARTIAL", "SETTLED", "OVERDUE", "WRITTEN_OFF"] 
 
 export function CreditsPage() {
   const queryClient = useQueryClient()
+  useCurrency()
   const [tab, setTab] = useState<Tab>("sales")
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("")

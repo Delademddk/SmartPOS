@@ -29,6 +29,7 @@ import { Spinner } from "@/components/feedback/Spinner";
 import { ProductImage } from "@/components/ui/ProductImage";
 import { cn } from "@/utils/cn";
 import { formatCurrency, statusColor } from "@/utils/format";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   ACCEPTED_IMAGE_INPUT,
   resolveImageUrl,
@@ -130,6 +131,7 @@ const ACTIVE_OPTIONS = [
 
 export function ProductsPage() {
   const queryClient = useQueryClient();
+  useCurrency();
   const { page, pageSize, setPage, setPageSize } = usePagination();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search);
@@ -873,6 +875,7 @@ interface PriceModalProps {
 
 function PriceModal({ product, onClose }: PriceModalProps) {
   const queryClient = useQueryClient();
+  useCurrency();
 
   const {
     register,

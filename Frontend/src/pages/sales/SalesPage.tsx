@@ -5,6 +5,7 @@ import toast from "react-hot-toast"
 import { apiGet, apiPost } from "@/api/client"
 import { usePagination } from "@/hooks/usePagination"
 import { useSettings } from "@/hooks/useSettings"
+import { useCurrency } from "@/hooks/useCurrency"
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback"
 import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format"
 import type { Sale, Receipt, PaginatedResponse } from "@/types"
@@ -40,6 +41,7 @@ function VoidModal({
   isLoading: boolean
 }) {
   const [reason, setReason] = useState("")
+  useCurrency()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -107,6 +109,7 @@ function SaleDetailModal({
   isOpen: boolean
   onClose: () => void
 }) {
+  useCurrency()
   const { data: sale, isLoading } = useQuery<Sale>({
     queryKey: ["sale", saleId],
     queryFn: async () => {
@@ -360,6 +363,7 @@ function SaleDetailModal({
 
 export function SalesPage() {
   const { page, pageSize, setPage, nextPage, prevPage } = usePagination()
+  useCurrency()
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("")

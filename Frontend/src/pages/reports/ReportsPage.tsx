@@ -8,6 +8,7 @@ import toast from "react-hot-toast"
 import { apiPost } from "@/api/client"
 import { PageLoader, Spinner, EmptyState } from "@/components/feedback"
 import { formatCurrency, formatDate } from "@/utils/format"
+import { useCurrency } from "@/hooks/useCurrency"
 import type { ReportRequest, ReportResponse } from "@/types"
 
 const REPORT_TYPES = [
@@ -85,6 +86,7 @@ function downloadCSV(rows: Record<string, unknown>[], filename: string) {
 
 export function ReportsPage() {
   const [reportResult, setReportResult] = useState<ReportResponse | null>(null)
+  useCurrency()
 
   const form = useForm<ReportForm>({
     resolver: zodResolver(reportSchema),
