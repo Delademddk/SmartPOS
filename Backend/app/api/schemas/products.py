@@ -22,6 +22,7 @@ class ProductRead(ORMModel):
     unit: str
     unit_price: float
     cost_price: float | None = None
+    image_url: str | None = None
     low_stock_threshold: int
     is_service: bool
     is_active: bool
@@ -41,6 +42,7 @@ class ProductCreate(CreateModel):
     unit: str = Field(default="pcs", max_length=20)
     unit_price: float = Field(..., ge=0)
     cost_price: float | None = Field(default=None, ge=0)
+    image_url: str | None = Field(default=None, max_length=500)
     low_stock_threshold: int = Field(default=10, ge=0)
     is_service: bool = False
     initial_quantity: int = Field(default=0, ge=0)
@@ -56,6 +58,7 @@ class ProductUpdate(UpdateModel):
     unit: str | None = Field(default=None, max_length=20)
     unit_price: float | None = Field(default=None, ge=0)
     cost_price: float | None = Field(default=None, ge=0)
+    image_url: str | None = Field(default=None, max_length=500)
     low_stock_threshold: int | None = Field(default=None, ge=0)
     is_service: bool | None = None
     is_active: bool | None = None

@@ -19,7 +19,7 @@ from app.exceptions import (
     TokenInvalidError,
     UnauthorizedError,
 )
-from app.models.auth import Permission
+from app.models.auth import Permission, RolePermission
 from app.models.users import User, UserSession
 
 logger = get_logger("auth.dependencies")
@@ -106,10 +106,11 @@ def _user_has_permission(db: Session, user: User, permission_code: str) -> bool:
         return True
     exists = (
         db.query(Permission)
-        .join(Permission.roles)
+        .join(RolePermission, RolePermission.permission_id == Permission.permission_id)
         .filter(
             Permission.permission_code == permission_code,
             Permission.is_active == True,
+            RolePermission.role_id == user.role_id,
         )
         .first()
     )

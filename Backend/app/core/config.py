@@ -68,6 +68,23 @@ class Settings(BaseSettings):
     enable_audit_log: bool = True
     enable_notifications: bool = True
 
+    # Image storage (Phase 03A - product images)
+    # STORAGE_PROVIDER: local (development) | s3 (future production)
+    storage_provider: str = "local"
+    # Project-relative directory used by the local provider.
+    local_upload_dir: str = "uploads/products"
+    max_product_image_size: int = 2097152
+    # Comma-separated list of accepted MIME types.
+    allowed_product_image_types: str = "image/jpeg,image/png,image/webp"
+    # Longest side (pixels) oversized images are resized down to.
+    product_image_max_dimension: int = 1600
+
+    # S3 storage (future production - empty until AWS is provisioned)
+    s3_bucket_name: str = ""
+    s3_region: str = ""
+    s3_access_key_id: str = ""
+    s3_secret_access_key: str = ""
+
     # ------------------------------------------------------------------
     # Derived helpers
     # ------------------------------------------------------------------
@@ -108,6 +125,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins(self) -> list[str]:
         return [origin.strip() for origin in self.frontend_url.split(",") if origin.strip()]
+
+    @property
+    def allowed_image_types_list(self) -> list[str]:
+        return [item.strip() for item in self.allowed_product_image_types.split(",") if item.strip()]
 
 
 @lru_cache

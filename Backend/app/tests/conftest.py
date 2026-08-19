@@ -3,15 +3,25 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tempfile
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
+
+TEST_UPLOAD_DIR = os.path.join(tempfile.gettempdir(), "smartpos-product-image-tests", "products")
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-that-is-long-enough")
+os.environ.setdefault("LOGIN_RATE_LIMIT", "100000")
+os.environ.setdefault("GENERAL_RATE_LIMIT", "1000000")
+os.environ.setdefault("LOCAL_UPLOAD_DIR", TEST_UPLOAD_DIR)
+os.environ.setdefault("MAX_PRODUCT_IMAGE_SIZE", "100000")
 
 from app.database.base import Base  # noqa: E402
 from app.models import (  # noqa: E402, F401
@@ -25,11 +35,20 @@ from app.api.dependencies.database import get_db_session  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _clean_upload_dir() -> Generator[None, None, None]:
+    """Reset the local product-image upload directory before each test."""
+    shutil.rmtree(TEST_UPLOAD_DIR, ignore_errors=True)
+    Path(TEST_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    yield
+
+
 @pytest.fixture()
 def engine():
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
         future=True,
     )
 
@@ -52,6 +71,8 @@ def session(engine) -> Generator[Session, None, None]:
 
 
 def _seed_base_data(db: Session) -> None:
+    if db.query(Role).filter(Role.role_code == "ADMIN").first() is not None:
+        return
     admin_role = Role(
         role_code="ADMIN",
         role_name="Administrator",

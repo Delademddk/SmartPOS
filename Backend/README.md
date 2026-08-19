@@ -125,3 +125,34 @@ pytest
 Covered areas: password policy, inventory stock operations, sale creation and
 voiding, returns, credit ledger and settlement, plus the health and auth API
 flows.
+
+## Product images (Phase 03A)
+
+Products support one optional image per product, uploaded as
+`multipart/form-data` alongside the JSON payload in the `data` field.
+
+- `POST /api/v1/products` — `data` (JSON) + optional `image` file
+- `PUT /api/v1/products/{id}` — `data` (JSON) + optional `image` to replace, or
+  `remove_image=true` to remove the current image
+- `DELETE /api/v1/products/{id}` — removes the product and its stored image
+- Image URLs are returned as `image_url` and served statically under
+  `/uploads/products/...`
+
+Storage is pluggable via `app/services/image_storage.py`:
+
+- `LocalImageStorageService` (default) saves files under `LOCAL_UPLOAD_DIR`
+  (`uploads/products`), cleaned up on replace/remove/delete.
+- `ImageStorageService` is the interface; an S3 implementation is planned —
+  set `STORAGE_PROVIDER=s3` (currently raises until it is implemented).
+
+Safety rails:
+
+- Allowed content types: JPEG, PNG, WebP.
+- `MAX_PRODUCT_IMAGE_SIZE` (default 2 MB) caps uploads (HTTP 400
+  `INVALID_IMAGE`).
+- Images are re-encoded/resized to a max 1600px dimension before saving.
+- Filenames are UUID-based to avoid collisions / path traversal.
+
+See `Documentation/Audit/PRODUCT_IMAGE_BACKEND_*.md` for the audit,
+verification report, and change log.
+

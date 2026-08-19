@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
 
 from app.api.schemas.sales import SaleCreate, SaleItemCreate
 from app.core.constants import SaleStatus
@@ -80,7 +81,7 @@ def test_create_sale_insufficient_stock(db_session, sale_setup, cashier) -> None
 
 
 def test_create_sale_requires_items(db_session, sale_setup, cashier) -> None:
-    with pytest.raises(ValidationError_):
+    with pytest.raises(ValidationError):
         _build_sale(sale_setup, qty=0)
 
 

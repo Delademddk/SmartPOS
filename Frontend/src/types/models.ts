@@ -53,20 +53,20 @@ export interface Category {
 
 export interface Product {
   product_id: number;
-  product_name: string;
-  product_code: string;
   sku: string;
   barcode: string | null;
+  product_name: string;
   description: string | null;
-  category_id: number;
-  category_name: string;
+  category_id: number | null;
+  category_name: string | null;
   supplier_id: number | null;
   supplier_name: string | null;
+  unit: string;
   unit_price: number;
-  cost_price: number;
-  tax_rate_id: number | null;
-  tax_rate_name: string | null;
-  reorder_level: number;
+  cost_price: number | null;
+  image_url: string | null;
+  low_stock_threshold: number;
+  is_service: boolean;
   is_active: boolean;
   quantity_on_hand: number;
   stock_status: string;
@@ -126,10 +126,11 @@ export interface Inventory {
   quantity_on_hand: number;
   quantity_reserved: number;
   available_quantity: number;
-  reorder_level: number;
+  reorder_level: number | null;
+  low_stock_threshold: number | null;
   stock_status: string;
-  last_restock_date: string | null;
-  last_count_date: string | null;
+  last_restocked_at: string | null;
+  last_sold_at: string | null;
   updated_at: string;
 }
 
@@ -137,15 +138,16 @@ export interface InventoryMovement {
   transaction_id: number;
   product_id: number;
   product_name: string;
+  sku: string;
   movement_type: string;
   quantity: number;
   quantity_before: number;
   quantity_after: number;
   unit_cost: number | null;
-  reference_number: string | null;
+  reference_type: string | null;
+  reference_id: string | null;
   reason: string | null;
-  user_id: number;
-  user_name: string;
+  username: string | null;
   created_at: string;
 }
 
@@ -155,10 +157,10 @@ export interface LowStockAlert {
   product_name: string;
   sku: string;
   quantity_on_hand: number;
-  reorder_level: number;
-  severity: string;
+  low_stock_threshold: number;
   status: string;
-  created_at: string;
+  raised_at: string;
+  resolved_at: string | null;
 }
 
 export interface Sale {
