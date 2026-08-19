@@ -33,6 +33,7 @@ from app.models import (  # noqa: E402, F401
 from app.main import app  # noqa: E402
 from app.api.dependencies.database import get_db_session  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
+from app.models.business import Currency  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -142,6 +143,23 @@ def _seed_base_data(db: Session) -> None:
             .permission_id,
         )
     )
+
+    for code, name, symbol, is_base in (
+        ("USD", "US Dollar", "$", 1),
+        ("GHS", "Ghana Cedi", "GH₵", 0),
+        ("EUR", "Euro", "€", 0),
+        ("GBP", "British Pound", "£", 0),
+        ("NGN", "Nigerian Naira", "₦", 0),
+    ):
+        if db.query(Currency).filter(Currency.currency_code == code).first() is None:
+            db.add(Currency(
+                currency_code=code,
+                currency_name=name,
+                symbol=symbol,
+                decimal_places=2,
+                is_base=is_base,
+                is_active=True,
+            ))
     db.commit()
 
 

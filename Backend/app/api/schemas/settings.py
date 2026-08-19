@@ -38,6 +38,12 @@ class SettingUpdate(UpdateModel):
     is_active: bool | None = None
 
 
+class CurrencyUpdate(UpdateModel):
+    """Request body for changing the global application currency."""
+
+    currency_code: str = Field(..., min_length=3, max_length=3)
+
+
 class UserSettingRead(ORMModel):
     user_setting_id: int
     user_id: int

@@ -1,56 +1,73 @@
 import { describe, it, expect } from "vitest";
 import {
   formatCurrency,
-  setCurrencySymbol,
+  formatCurrencyWithConfig,
+  setCurrencyConfig,
   formatNumber,
   formatPercent,
   truncate,
   getInitials,
   statusColor,
 } from "@/utils/format";
+import type { CurrencyConfig } from "@/utils/format";
 
-describe("formatCurrency", () => {
-  it("formats positive amounts", () => {
-    expect(formatCurrency(1234.56)).toBe("$1,234.56");
+const USD: CurrencyConfig = { code: "USD", symbol: "$", locale: "en-US", decimalPlaces: 2 };
+const GHS: CurrencyConfig = { code: "GHS", symbol: "GH₵", locale: "en-GH", decimalPlaces: 2 };
+const EUR: CurrencyConfig = { code: "EUR", symbol: "€", locale: "en-IE", decimalPlaces: 2 };
+
+describe("formatCurrencyWithConfig", () => {
+  it("formats positive amounts with explicit config", () => {
+    expect(formatCurrencyWithConfig(1234.56, USD)).toBe("$1,234.56");
+  });
+
+  it("formats with the configured currency symbol and locale", () => {
+    expect(formatCurrencyWithConfig(100, GHS)).toBe("GH₵100.00");
+    expect(formatCurrencyWithConfig(100, EUR)).toBe("€100.00");
   });
 
   it("formats zero", () => {
-    expect(formatCurrency(0)).toBe("$0.00");
+    expect(formatCurrencyWithConfig(0, USD)).toBe("$0.00");
   });
 
-  it("formats negative amounts", () => {
-    expect(formatCurrency(-500)).toBe("$-500.00");
-  });
-
-  it("uses custom symbol", () => {
-    expect(formatCurrency(100, "KES")).toBe("KES100.00");
+  it("formats negative amounts with the minus before the symbol", () => {
+    expect(formatCurrencyWithConfig(-500, USD)).toBe("-$500.00");
   });
 
   it("treats undefined as zero instead of crashing", () => {
-    expect(formatCurrency(undefined)).toBe("$0.00");
+    expect(formatCurrencyWithConfig(undefined, USD)).toBe("$0.00");
   });
 
   it("treats null as zero instead of crashing", () => {
-    expect(formatCurrency(null)).toBe("$0.00");
+    expect(formatCurrencyWithConfig(null, USD)).toBe("$0.00");
+  });
+
+  it("falls back to symbol concatenation when the code is invalid", () => {
+    expect(formatCurrencyWithConfig(100, { ...USD, code: "XXX" })).toBe("$100.00");
   });
 });
 
-describe("setCurrencySymbol", () => {
-  it("changes the default symbol used by formatCurrency", () => {
-    setCurrencySymbol("KES");
-    expect(formatCurrency(100)).toBe("KES100.00");
-    setCurrencySymbol("$");
-  });
-
-  it("ignores an empty symbol and falls back to $", () => {
-    setCurrencySymbol("   ");
+describe("formatCurrency with active config", () => {
+  it("defaults to USD before any config is set", () => {
+    setCurrencyConfig(USD);
     expect(formatCurrency(100)).toBe("$100.00");
   });
 
-  it("still honours an explicit symbol argument", () => {
-    setCurrencySymbol("KES");
-    expect(formatCurrency(100, "€")).toBe("€100.00");
-    setCurrencySymbol("$");
+  it("uses the active application currency", () => {
+    setCurrencyConfig(GHS);
+    expect(formatCurrency(1234.5)).toBe("GH₵1,234.50");
+    setCurrencyConfig(USD);
+  });
+
+  it("normalizes codes to uppercase", () => {
+    setCurrencyConfig({ code: "ghs", symbol: "GH₵", locale: "en-GH", decimalPlaces: 2 });
+    expect(formatCurrency(100)).toBe("GH₵100.00");
+    setCurrencyConfig(USD);
+  });
+
+  it("ignores an empty code and falls back to USD", () => {
+    setCurrencyConfig({ code: "   ", symbol: "GH₵", locale: "en-GH", decimalPlaces: 2 });
+    expect(formatCurrency(100)).toBe("$100.00");
+    setCurrencyConfig(USD);
   });
 });
 

@@ -9,6 +9,7 @@ import { apiGet, apiPost } from "@/api/client";
 import { usePagination } from "@/hooks/usePagination";
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback";
 import { formatDate, formatDateTime, formatCurrency, statusColor } from "@/utils/format";
+import { useCurrency } from "@/hooks/useCurrency";
 import type { Return, ReturnReason, Sale, SaleItem, PaginatedResponse } from "@/types";
 
 interface ReturnCreatePayload {
@@ -44,6 +45,7 @@ const STATUS_OPTIONS = [
 
 export function ReturnsPage() {
   const { page, pageSize, setPage, setPageSize } = usePagination();
+  useCurrency();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterSaleId, setFilterSaleId] = useState<string>("");
@@ -216,6 +218,7 @@ interface CreateReturnModalProps {
 
 function CreateReturnModal({ reasons, onClose }: CreateReturnModalProps) {
   const queryClient = useQueryClient();
+  useCurrency();
   const [selectedSaleId, setSelectedSaleId] = useState<string>("");
   const [selectedItems, setSelectedItems] = useState<ReturnItemForm[]>([]);
 
@@ -509,6 +512,7 @@ interface ReturnDetailModalProps {
 }
 
 function ReturnDetailModal({ returnId, onClose }: ReturnDetailModalProps) {
+  useCurrency();
   const { data: returnDetail, isLoading } = useQuery({
     queryKey: ["return-detail", returnId],
     queryFn: async () => {

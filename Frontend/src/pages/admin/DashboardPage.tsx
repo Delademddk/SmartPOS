@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { apiGet } from "@/api/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrency } from "@/hooks/useCurrency";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { PageLoader } from "@/components/feedback/PageLoader";
 import { ErrorDisplay } from "@/components/feedback/ErrorDisplay";
@@ -19,6 +20,7 @@ import type {
 
 export function DashboardPage() {
   const { isCashier } = useAuth();
+  useCurrency();
 
   const { data: kpis, isLoading, error } = useQuery({
     queryKey: ["dashboard", "kpis"],

@@ -12,10 +12,13 @@ import {
   Trash2,
   X,
   Save,
+  Coins,
 } from "lucide-react"
 import toast from "react-hot-toast"
 import { apiGet, apiPost, apiPut, apiDelete } from "@/api/client"
 import { PageLoader, Spinner } from "@/components/feedback"
+import { useSettings } from "@/hooks/useSettings"
+import { formatCurrencyWithConfig } from "@/utils/format"
 import type {
   BusinessInfo,
   BusinessInfoUpdate,
@@ -26,6 +29,7 @@ import type {
   SettingCreate,
   SettingUpdate,
   SettingCategory,
+  Currency,
 } from "@/types"
 
 const businessInfoSchema = z.object({
@@ -555,6 +559,129 @@ function TaxRatesTab() {
 }
 
 function AppSettingsTab() {
+  return (
+    <div className="space-y-6">
+      <CurrencySettingsCard />
+      <AppSettingsManager />
+    </div>
+  )
+}
+
+const CURRENCY_LOCALES: Record<string, string> = {
+  USD: "en-US",
+  GHS: "en-GH",
+  EUR: "en-IE",
+  GBP: "en-GB",
+  NGN: "en-NG",
+}
+
+function CurrencySettingsCard() {
+  const queryClient = useQueryClient()
+  const { currency } = useSettings()
+
+  const { data: currencies = [], isLoading: currenciesLoading } = useQuery<Currency[]>({
+    queryKey: ["business", "currencies"],
+    queryFn: async () => {
+      const res = await apiGet<Currency[]>("/business/currencies")
+      return res.data
+    },
+  })
+
+  const activeCurrencies = currencies.filter((c) => c.is_active)
+
+  const updateCurrencyMutation = useMutation({
+    mutationFn: (code: string) => apiPut("/settings/currency", { currency_code: code }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] })
+      queryClient.invalidateQueries({ queryKey: ["business-info"] })
+      toast.success("Application currency updated")
+    },
+    onError: () => toast.error("Failed to update currency"),
+  })
+
+  if (currenciesLoading) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Spinner size="sm" /> Loading currencies...
+        </div>
+      </div>
+    )
+  }
+
+  const handleChange = (code: string) => {
+    if (code && code !== currency.code) {
+      updateCurrencyMutation.mutate(code)
+    }
+  }
+
+  const preview = (code: string) => {
+    const found = activeCurrencies.find((c) => c.currency_code === code)
+    return formatCurrencyWithConfig(1050.5, {
+      code,
+      symbol: found?.symbol ?? "$",
+      locale: CURRENCY_LOCALES[code] ?? "en-US",
+      decimalPlaces: found?.decimal_places ?? 2,
+    })
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Coins size={18} className="text-blue-600" />
+        <h3 className="text-lg font-semibold">Application Currency</h3>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">
+        This is the single currency used across the entire application — POS, products,
+        inventory, reports, receipts and every printed amount. Changing it applies
+        instantly app-wide without altering stored amounts.
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Currency
+          </label>
+          <select
+            value={currency.code}
+            onChange={(e) => handleChange(e.target.value)}
+            disabled={updateCurrencyMutation.isPending}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+          >
+            {activeCurrencies.length === 0 ? (
+              <option value={currency.code}>{currency.code}</option>
+            ) : (
+              activeCurrencies.map((c) => (
+                <option key={c.currency_code} value={c.currency_code}>
+                  {c.currency_name} ({c.currency_code})
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Symbol
+          </label>
+          <input
+            value={currency.symbol}
+            readOnly
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Preview
+          </label>
+          <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 font-semibold text-gray-900">
+            {preview(currency.code)}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AppSettingsManager() {
   const queryClient = useQueryClient()
   const [selectedCategory, setSelectedCategory] = useState<SettingCategory>("general")
   const [showForm, setShowForm] = useState(false)

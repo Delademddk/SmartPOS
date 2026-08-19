@@ -9,7 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user, require_permission
 from app.api.dependencies.database import get_db_session
-from app.api.schemas.settings import SettingCreate, SettingRead, SettingUpdate
+from app.api.schemas.settings import (
+    CurrencyUpdate,
+    SettingCreate,
+    SettingRead,
+    SettingUpdate,
+)
 from app.core.constants import PermissionCode
 from app.models.users import User
 from app.services.business_service import BusinessService
@@ -19,6 +24,8 @@ router = APIRouter(prefix="/settings", tags=["Settings"])
 
 PUBLIC_SETTING_KEYS = {
     "currency_symbol",
+    "currency_code",
+    "currency_locale",
     "business_name",
     "receipt_footer",
     "receipt_show_tax",
@@ -52,6 +59,25 @@ def list_settings(
     return success_response(
         [SettingRead.model_validate(s).model_dump() for s in BusinessService(db).list_settings(category)]
     )
+
+
+@router.get("/currency", response_model=dict)
+def get_currency(
+    user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db_session),
+) -> dict:
+    """Return the active application currency configuration."""
+    return success_response(BusinessService(db).get_currency_config())
+
+
+@router.put("/currency", response_model=dict)
+def update_currency(
+    payload: CurrencyUpdate,
+    user: Annotated[User, Depends(require_permission(PermissionCode.SETTINGS_UPDATE))],
+    db: Session = Depends(get_db_session),
+) -> dict:
+    """Change the global application currency (admin only)."""
+    return success_response(BusinessService(db).update_currency(payload.currency_code, user))
 
 
 @router.get("/{key}", response_model=dict)

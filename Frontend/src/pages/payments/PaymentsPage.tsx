@@ -5,6 +5,7 @@ import { apiGet } from "@/api/client";
 import { usePagination } from "@/hooks/usePagination";
 import { PageLoader, EmptyState } from "@/components/feedback";
 import { formatDateTime, formatCurrency, statusColor } from "@/utils/format";
+import { useCurrency } from "@/hooks/useCurrency";
 import { cn } from "@/utils/cn";
 import type { PaginatedResponse, PaymentMethod } from "@/types";
 
@@ -31,6 +32,7 @@ const STATUS_OPTIONS = [
 
 export function PaymentsPage() {
   const { page, pageSize, setPage, setPageSize } = usePagination();
+  useCurrency();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filterSaleId, setFilterSaleId] = useState("");

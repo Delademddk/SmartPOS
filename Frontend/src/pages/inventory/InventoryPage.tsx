@@ -8,7 +8,8 @@ import toast from "react-hot-toast";
 import { apiGet, apiPost } from "@/api/client";
 import { usePagination } from "@/hooks/usePagination";
 import { PageLoader, EmptyState, Spinner } from "@/components/feedback";
-import { formatDate, formatDateTime, formatNumber, statusColor } from "@/utils/format";
+import { formatDate, formatDateTime, formatNumber, formatCurrency, statusColor } from "@/utils/format";
+import { useCurrency } from "@/hooks/useCurrency";
 import type {
   Inventory,
   InventoryMovement,
@@ -96,6 +97,7 @@ function AlertStatusBadge({ status }: { status: string }) {
 
 export function InventoryPage() {
   const queryClient = useQueryClient();
+  const { symbol: currencySymbol } = useCurrency();
   const [activeTab, setActiveTab] = useState<Tab>("inventory");
   const [search, setSearch] = useState("");
   const [stockStatusFilter, setStockStatusFilter] = useState("");
@@ -665,7 +667,7 @@ export function InventoryPage() {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500">
                       {(movement.unit_cost ?? 0) > 0
-                        ? `$${(movement.unit_cost ?? 0).toFixed(2)}`
+                        ? formatCurrency(movement.unit_cost)
                         : "-"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">
@@ -923,7 +925,7 @@ export function InventoryPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Unit Cost ($)
+                    Unit Cost ({currencySymbol})
                   </label>
                   <input
                     type="number"
