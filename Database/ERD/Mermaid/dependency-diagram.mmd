@@ -1,0 +1,92 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE DEPENDENCY DIAGRAM (build/load order)
+%% ======================================================================
+%% Arrows point in build order: module A --> module B means B depends on A.
+%% SQL script execution follows this ordering (see Database/SQL/README).
+%% ======================================================================
+
+flowchart TB
+    subgraph foundation["FOUNDATION LAYER"]
+        M17["MODULE 17 - Shared Functions<br/>(functions.sql)"]
+    end
+
+    subgraph identity["IDENTITY & ACCESS LAYER"]
+        M01["MODULE 01 - Authentication<br/>(roles, permissions, role_permissions)"]
+        M02["MODULE 02 - Users<br/>(users, user_sessions, password_history, password_resets)"]
+    end
+
+    subgraph master["MASTER DATA LAYER"]
+        M03["MODULE 03 - Business<br/>(business_information, currencies, tax_rates)"]
+        M04["MODULE 04 - Categories<br/>(categories)"]
+        M06["MODULE 06 - Suppliers<br/>(suppliers, supplier_contacts, supplier_history)"]
+        M05["MODULE 05 - Products<br/>(products, product_images)"]
+    end
+
+    subgraph operations["OPERATIONS LAYER"]
+        M07["MODULE 07 - Inventory<br/>(inventory, inventory_transactions, stock_reconciliations, low_stock_alerts)"]
+        M08["MODULE 08 - Sales<br/>(sales, sale_items)"]
+        M09["MODULE 09 - Payments<br/>(payment_methods, payments, receipts)"]
+        M10["MODULE 10 - Credit Sales<br/>(customers, credit_sales, credit_payments)"]
+        M11["MODULE 11 - Returns<br/>(return_reasons, returns, return_items)"]
+    end
+
+    subgraph support["SUPPORT LAYER"]
+        M12["MODULE 12 - Notifications<br/>(notification_types, notifications, notification_history)"]
+        M15["MODULE 15 - Settings<br/>(settings, user_settings)"]
+    end
+
+    subgraph insight["INTELLIGENCE LAYER"]
+        M13["MODULE 13 - Reports<br/>(SP_Reports, VW_Report_Views)"]
+        M14["MODULE 14 - Dashboard<br/>(SP_Dashboard, VW_Dashboard_Views)"]
+        M16["MODULE 16 - Audit & Logging<br/>(audit_logs, activity_logs, error_logs, security_logs)"]
+    end
+
+    %% ---- dependency edges (build order) ----
+    M17 --> M01
+    M01 --> M02
+    M02 --> M04
+    M02 --> M06
+    M04 --> M05
+    M06 --> M05
+    M03 --> M08
+    M05 --> M07
+    M05 --> M08
+    M02 --> M07
+    M02 --> M08
+    M08 --> M09
+    M09 --> M10
+    M08 --> M10
+    M02 --> M10
+    M08 --> M11
+    M10 --> M11
+    M05 --> M11
+    M02 --> M11
+    M02 --> M12
+    M02 --> M15
+    M02 --> M16
+    M10 --> M12
+    M07 --> M12
+    M08 --> M12
+    M11 --> M12
+    M07 --> M13
+    M08 --> M13
+    M09 --> M13
+    M10 --> M13
+    M11 --> M13
+    M13 --> M14
+    M16 --> M13
+
+    %% ---- styling ----
+    classDef foundation fill:#2d6a4f,color:#fff,stroke:#1b4332,stroke-width:2px
+    classDef identity fill:#1d3557,color:#fff,stroke:#14213d,stroke-width:2px
+    classDef master fill:#7f5539,color:#fff,stroke:#6f4518,stroke-width:2px
+    classDef operations fill:#9d0208,color:#fff,stroke:#6a040f,stroke-width:2px
+    classDef support fill:#023e8a,color:#fff,stroke:#03045e,stroke-width:2px
+    classDef insight fill:#5a189a,color:#fff,stroke:#3c096c,stroke-width:2px
+
+    class M17 foundation
+    class M01,M02 identity
+    class M03,M04,M05,M06 master
+    class M07,M08,M09,M10,M11 operations
+    class M12,M15 support
+    class M13,M14,M16 insight

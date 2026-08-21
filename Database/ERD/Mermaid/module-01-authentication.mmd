@@ -1,0 +1,47 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE 01: AUTHENTICATION (RBAC)
+%% Tables: roles, permissions, role_permissions
+%% Dependencies: none (standalone)
+%% ======================================================================
+
+erDiagram
+
+  roles {
+    int role_id PK
+    nvarchar(50) role_code
+    nvarchar(100) role_name
+    nvarchar(255) description
+    bit is_system
+    bit is_active
+    datetime2(0) created_at
+    datetime2(0) updated_at
+    int created_by
+    int updated_by
+  }
+
+  permissions {
+    int permission_id PK
+    nvarchar(100) permission_code
+    nvarchar(150) permission_name
+    nvarchar(255) description
+    nvarchar(100) module_name
+    bit is_system
+    bit is_active
+    datetime2(0) created_at
+    datetime2(0) updated_at
+    int created_by
+    int updated_by
+  }
+
+  role_permissions {
+    int role_permission_id PK
+    int role_id FK
+    int permission_id FK
+    int granted_by
+    datetime2(0) granted_at
+  }
+
+  %% A role owns many permission grants; a permission can be
+  %% granted to many roles (many-to-many junction).
+  roles ||--o{ role_permissions : "owns grants"
+  permissions ||--o{ role_permissions : "granted via"

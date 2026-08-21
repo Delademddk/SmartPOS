@@ -1,0 +1,76 @@
+%% SmartPOS — System Architecture (Layered / Clean Architecture)
+%% Reference: 12_System_Architecture/README.md
+%% Reference: AI/SMARTPOS_PROJECT_BIBLE.md
+
+graph TD
+    subgraph "Layer 1: Presentation"
+        FE["Frontend SPA
+        React + Vite + TypeScript
+        Tailwind CSS"]
+    end
+
+    subgraph "Layer 2: Application (Backend)"
+        API["Backend API
+        FastAPI + Python
+        SQLAlchemy + Pydantic"]
+    end
+
+    subgraph "Layer 3: Enterprise (Database)"
+        DB["Database
+        Microsoft SQL Server
+        Tables, Views, SPs, Triggers"]
+    end
+
+    subgraph "External"
+        EXT["External Users
+        Browser / HTTP(S)"]
+    end
+
+    %% Dependencies / Data Flow
+    EXT -- HTTPS/REST/JSON --> FE
+    FE -- HTTP(S)/REST/JSON --> API
+    API -- TCP/IP/SQL --> DB
+    DB -- Query Results --> API
+    API -- HTTP(S)/JSON --> FE
+    FE -- HTTP(S)/JSON --> EXT
+
+    %% Clean Architecture Inner Boundaries
+    subgraph "Clean Architecture Boundaries"
+        direction LR
+        subgraph "Frameworks & Drivers"
+            DB
+        end
+        subgraph "Interface Adapters"
+            API
+        end
+        subgraph "Use Cases"
+            UC["Application Services
+            (business logic)"]
+        end
+        subgraph "Entities"
+            ENT["ORM Models
+            (domain entities)"]
+        end
+    end
+
+    %% Dependency direction (arrows point inward — dependencies)
+    API -->|depends on| UC
+    UC -->|depends on| ENT
+    ENT -->|persisted via| DB
+
+    classDef presentation fill:#3b82f6,color:#fff,stroke:#1d4ed8;
+    classDef application fill:#8b5cf6,color:#fff,stroke:#6d28d9;
+    classDef data fill:#10b981,color:#fff,stroke:#065f4d;
+    classDef external fill:#6b7280,color:#fff,stroke:#374151;
+    classDef boundary fill:#f59e0b,color:#fff,stroke:#92400e;
+
+    class FE presentation
+    class API application
+    class DB data
+    class EXT external
+    class UC,ENT boundary
+
+    style FE fill:#3b82f6
+    style API fill:#8b52cf
+    style DB fill:#10b981
+    style EXT fill:#6b7280

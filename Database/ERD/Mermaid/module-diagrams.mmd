@@ -1,0 +1,433 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE DIAGRAMS (composite overview)
+%% ======================================================================
+%% This file groups every module into a single erDiagram with clear
+%% %% MODULE headers. Dedicated per-module files also exist:
+%%   module-01-authentication.mmd
+%%   module-02-users.mmd
+%%   module-05-products.mmd
+%%   module-07-inventory.mmd
+%%   module-08-sales.mmd
+%%   module-10-credit.mmd
+%%   module-11-returns.mmd
+%% ======================================================================
+
+erDiagram
+
+  %% ---------------- MODULE 01: AUTHENTICATION ----------------
+  roles {
+    int role_id PK
+    nvarchar(50) role_code
+    nvarchar(100) role_name
+    bit is_system
+    bit is_active
+  }
+  permissions {
+    int permission_id PK
+    nvarchar(100) permission_code
+    nvarchar(150) permission_name
+    nvarchar(100) module_name
+  }
+  role_permissions {
+    int role_permission_id PK
+    int role_id FK
+    int permission_id FK
+    int granted_by
+    datetime2(0) granted_at
+  }
+
+  %% ---------------- MODULE 02: USERS ----------------
+  users {
+    int user_id PK
+    nvarchar(50) username
+    nvarchar(255) email
+    nvarchar(255) password_hash
+    nvarchar(150) full_name
+    int role_id FK
+    bit is_active
+    bit is_locked
+    tinyint failed_login_attempts
+    bit is_deleted
+  }
+  user_sessions {
+    int session_id PK
+    int user_id FK
+    nvarchar(255) session_token
+    datetime2(0) expires_at
+    bit is_revoked
+  }
+  password_history {
+    int history_id PK
+    int user_id FK
+    nvarchar(255) password_hash
+    datetime2(0) changed_at
+  }
+  password_resets {
+    int reset_id PK
+    int user_id FK
+    nvarchar(255) reset_token
+    datetime2(0) expires_at
+    datetime2(0) used_at
+  }
+
+  %% ---------------- MODULE 03: BUSINESS ----------------
+  business_information {
+    int business_info_id PK
+    nvarchar(150) business_name
+    nvarchar(50) tax_id
+    nvarchar(3) currency_code
+    nvarchar(100) timezone
+    bit is_active
+  }
+  currencies {
+    int currency_id PK
+    nvarchar(3) currency_code
+    nvarchar(100) currency_name
+    nvarchar(10) symbol
+    tinyint decimal_places
+    bit is_base
+  }
+  tax_rates {
+    int tax_rate_id PK
+    nvarchar(100) tax_name
+    nvarchar(20) tax_code
+    decimal(7,4) rate_percent
+    bit is_default
+  }
+
+  %% ---------------- MODULE 04: CATEGORIES ----------------
+  categories {
+    int category_id PK
+    nvarchar(100) category_name
+    int parent_id FK
+    bit is_active
+    bit is_deleted
+  }
+
+  %% ---------------- MODULE 05: PRODUCTS ----------------
+  products {
+    int product_id PK
+    nvarchar(50) sku
+    nvarchar(50) barcode
+    nvarchar(200) product_name
+    int category_id FK
+    int supplier_id FK
+    decimal(19,4) unit_price
+    decimal(19,4) cost_price
+    nvarchar(500) image_url
+    int low_stock_threshold
+    bit is_active
+    bit is_deleted
+  }
+  product_images {
+    int image_id PK
+    int product_id FK
+    nvarchar(500) image_url
+    bit is_primary
+    int sort_order
+  }
+
+  %% ---------------- MODULE 06: SUPPLIERS ----------------
+  suppliers {
+    int supplier_id PK
+    nvarchar(30) supplier_code
+    nvarchar(150) supplier_name
+    nvarchar(150) contact_person
+    bit is_active
+    bit is_deleted
+  }
+  supplier_contacts {
+    int contact_id PK
+    int supplier_id FK
+    nvarchar(150) full_name
+    nvarchar(100) job_title
+    bit is_primary
+  }
+  supplier_history {
+    int history_id PK
+    int supplier_id FK
+    nvarchar(50) history_type
+    int changed_by FK
+    datetime2(0) changed_at
+  }
+
+  %% ---------------- MODULE 07: INVENTORY ----------------
+  inventory {
+    int inventory_id PK
+    int product_id FK
+    int quantity_on_hand
+    int quantity_reserved
+    int reorder_level
+    datetime2(0) last_restocked_at
+  }
+  inventory_transactions {
+    int transaction_id PK
+    int product_id FK
+    nvarchar(30) movement_type
+    int quantity
+    int quantity_before
+    int quantity_after
+    int user_id FK
+    datetime2(0) created_at
+  }
+  stock_reconciliations {
+    int reconciliation_id PK
+    int product_id FK
+    int system_quantity
+    int counted_quantity
+    int difference
+    nvarchar(30) adjustment_type
+    int user_id FK
+    int transaction_id FK
+  }
+  low_stock_alerts {
+    int alert_id PK
+    int product_id FK
+    int quantity_on_hand
+    nvarchar(20) status
+    datetime2(0) raised_at
+  }
+
+  %% ---------------- MODULE 08: SALES ----------------
+  sales {
+    int sale_id PK
+    nvarchar(50) receipt_number
+    datetime2(0) sale_date
+    int user_id FK
+    int customer_id FK
+    int tax_rate_id FK
+    nvarchar(20) sale_type
+    decimal(19,4) subtotal
+    decimal(19,4) discount_amount
+    decimal(19,4) tax_amount
+    decimal(19,4) total_amount
+    decimal(19,4) amount_received
+    nvarchar(20) status
+  }
+  sale_items {
+    int sale_item_id PK
+    int sale_id FK
+    int product_id FK
+    decimal(12,3) quantity
+    decimal(19,4) unit_price
+    decimal(19,4) line_total
+    bit is_returned
+    decimal(12,3) returned_qty
+  }
+
+  %% ---------------- MODULE 09: PAYMENTS ----------------
+  payment_methods {
+    int payment_method_id PK
+    nvarchar(30) method_code
+    nvarchar(100) method_name
+    bit is_cash
+    bit is_active
+  }
+  payments {
+    int payment_id PK
+    int sale_id FK
+    int payment_method_id FK
+    decimal(19,4) amount
+    nvarchar(100) reference_number
+    int received_by FK
+    nvarchar(20) pay_status
+  }
+  receipts {
+    int receipt_id PK
+    nvarchar(50) receipt_number
+    int sale_id FK
+    decimal(19,4) gross_total
+    decimal(19,4) net_total
+    decimal(19,4) amount_paid
+    decimal(19,4) change_due
+    int generated_by FK
+  }
+
+  %% ---------------- MODULE 10: CREDIT SALES ----------------
+  customers {
+    int customer_id PK
+    nvarchar(30) customer_code
+    nvarchar(150) full_name
+    nvarchar(30) phone
+    decimal(19,4) credit_limit
+    bit is_active
+    bit is_deleted
+  }
+  credit_sales {
+    int credit_sale_id PK
+    int sale_id FK
+    int customer_id FK
+    decimal(19,4) total_amount
+    decimal(19,4) amount_paid
+    decimal(19,4) outstanding_balance
+    date due_date
+    nvarchar(20) status
+  }
+  credit_payments {
+    int credit_payment_id PK
+    int credit_sale_id FK
+    int payment_id FK
+    decimal(19,4) amount
+    datetime2(0) payment_date
+    int received_by FK
+  }
+
+  %% ---------------- MODULE 11: RETURNS ----------------
+  return_reasons {
+    int return_reason_id PK
+    nvarchar(30) reason_code
+    nvarchar(100) reason_name
+    bit is_active
+  }
+  returns {
+    int return_id PK
+    nvarchar(50) return_number
+    int sale_id FK
+    int customer_id FK
+    int user_id FK
+    int return_reason_id FK
+    nvarchar(20) status
+    decimal(19,4) total_refund_amount
+  }
+  return_items {
+    int return_item_id PK
+    int return_id FK
+    int sale_item_id FK
+    int product_id FK
+    decimal(12,3) quantity
+    decimal(19,4) unit_price
+    decimal(19,4) refund_amount
+  }
+
+  %% ---------------- MODULE 12: NOTIFICATIONS ----------------
+  notification_types {
+    int notification_type_id PK
+    nvarchar(50) type_code
+    nvarchar(100) type_name
+    bit is_active
+  }
+  notifications {
+    int notification_id PK
+    int user_id FK
+    int notification_type_id FK
+    nvarchar(150) title
+    nvarchar(20) severity
+    bit is_read
+    bit is_dismissed
+    nvarchar(100) entity_type
+  }
+  notification_history {
+    int history_id PK
+    int notification_id FK
+    int user_id FK
+    int notification_type_id FK
+    nvarchar(200) title
+    datetime2(0) delivered_at
+    nvarchar(20) status
+  }
+
+  %% ---------------- MODULE 15: SETTINGS ----------------
+  settings {
+    int setting_id PK
+    nvarchar(100) setting_key
+    nvarchar(max) setting_value
+    nvarchar(20) data_type
+    nvarchar(50) category
+    bit is_active
+  }
+  user_settings {
+    int user_setting_id PK
+    int user_id FK
+    nvarchar(100) setting_key
+    nvarchar(max) setting_value
+  }
+
+  %% ---------------- MODULE 16: AUDIT & LOGGING ----------------
+  audit_logs {
+    int log_id PK
+    int user_id FK
+    nvarchar(50) action_type
+    nvarchar(100) resource_type
+    nvarchar(100) resource_id
+    nvarchar(max) old_values
+    nvarchar(max) new_values
+    datetime2(0) created_at
+  }
+  activity_logs {
+    int activity_id PK
+    int user_id FK
+    nvarchar(100) activity_type
+    nvarchar(100) entity_type
+    nvarchar(max) metadata
+    datetime2(0) created_at
+  }
+  error_logs {
+    int error_id PK
+    int user_id FK
+    nvarchar(50) error_code
+    nvarchar(max) message
+    nvarchar(200) source
+    int http_status
+    datetime2(0) occurred_at
+  }
+  security_logs {
+    int security_log_id PK
+    int user_id FK
+    nvarchar(50) event_type
+    nvarchar(50) username
+    nvarchar(45) ip_address
+    datetime2(0) created_at
+  }
+
+  %% ==================== CROSS-MODULE RELATIONSHIPS ====================
+  roles ||--o{ role_permissions : "owns grants"
+  permissions ||--o{ role_permissions : "granted via"
+  roles ||--o{ users : "assigns role"
+  users ||--o{ user_sessions : "owns sessions"
+  users ||--o{ password_history : "tracks hashes"
+  users ||--o{ password_resets : "issues resets"
+  categories ||--o{ categories : "parent category"
+  categories ||--o{ products : "categorizes"
+  suppliers ||--o{ products : "supplies"
+  products ||--o{ product_images : "has images"
+  suppliers ||--o{ supplier_contacts : "has contacts"
+  suppliers ||--o{ supplier_history : "records history"
+  products ||--o| inventory : "1 snapshot (unique)"
+  products ||--o{ inventory_transactions : "logs movements"
+  users ||--o{ inventory_transactions : "performed by"
+  products ||--o{ stock_reconciliations : "reconciled for"
+  users ||--o{ stock_reconciliations : "counted by"
+  inventory_transactions ||--o{ stock_reconciliations : "produced by"
+  products ||--o{ low_stock_alerts : "raises alerts"
+  users ||--o{ sales : "cashier"
+  customers ||--o{ sales : "buyer (indexed ref, no FK)"
+  tax_rates ||--o{ sales : "applied to"
+  sales ||--o{ sale_items : "contains lines"
+  products ||--o{ sale_items : "sold as"
+  sales ||--o{ payments : "paid by"
+  payment_methods ||--o{ payments : "tendered via"
+  users ||--o{ payments : "received by"
+  sales ||--o{ receipts : "generates"
+  users ||--o{ receipts : "generated by"
+  customers ||--o{ credit_sales : "opens ledger"
+  sales ||--o| credit_sales : "1 credit ledger (unique)"
+  credit_sales ||--o{ credit_payments : "settled by"
+  payments ||--o{ credit_payments : "optionally linked"
+  users ||--o{ credit_payments : "received by"
+  sales ||--o{ returns : "refunded via"
+  customers ||--o{ returns : "issued by"
+  users ||--o{ returns : "processed by"
+  return_reasons ||--o{ returns : "explained by"
+  returns ||--o{ return_items : "contains lines"
+  sale_items ||--o{ return_items : "referenced line"
+  products ||--o{ return_items : "returned product"
+  users ||--o{ notifications : "receives"
+  notification_types ||--o{ notifications : "typed as"
+  notifications ||--o{ notification_history : "archived to"
+  users ||--o{ notification_history : "recipient"
+  notification_types ||--o{ notification_history : "typed as"
+  users ||--o{ user_settings : "preferences"
+  users ||--o{ audit_logs : "actor"
+  users ||--o{ activity_logs : "performed"
+  users ||--o{ error_logs : "triggered"
+  users ||--o{ security_logs : "subject"

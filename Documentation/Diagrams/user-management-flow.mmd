@@ -1,0 +1,76 @@
+%% SmartPOS — User Management Flow
+%% Reference: 05_Functional_Requirements/FR-28 to FR-31, 09_Use_Cases/UC-04, UC-05
+
+flowchart TD
+    subgraph "Create User"
+        CU1["1. Admin opens Create User modal"] --> CU2["Enter username, name, email, role"]
+        CU2 --> CU3["Frontend validates (Zod)"]
+        CU3 --> CU4{"Valid?"}
+        CU4 -->|"No"| CU5["Show validation errors"]
+        CU4 -->|"Yes"| CU6["API: POST /users"]
+        CU6 --> CU7["Backend validates (Pydantic)"]
+        CU7 --> CU8{"Username/Email unique?"}
+        CU8 -->|"No"| CU9["Return 409 Conflict"]
+        CU8 -->|"Yes"| CU10["Generate temp password"]
+        CU10 --> CU11["Hash password (bcrypt)"]
+        CU11 --> CU12["INSERT user + audit_log"]
+        CU12 --> CU13["Return user + temp password"]
+        CU13 --> CU14["Show temp password to Admin"]
+    end
+
+    subgraph "Deactivate User"
+        D1["1. Admin clicks Deactivate"] --> D2["Confirmation modal"]
+        D2 --> D3["Admin confirms"]
+        D3 --> D4{"Is self?"}
+        D4 -->|"Yes"| D5["Reject: Cannot deactivate self"]
+        D4 -->|"No"| D6["API: DELETE /users/{id} (soft)"]
+        D6 --> D7["Set is_active = false"]
+        D7 --> D8["Log audit entry"]
+        D8 --> D9["User cannot login (immediate)"]
+    end
+
+    subgraph "Reset Password"
+        RP1["1. Admin clicks Reset Password"] --> RP2["System generates new temp password"]
+        RP2 --> RP3["Hash password (bcrypt)"]
+        RP3 --> RP4["UPDATE user password_hash"]
+        RP4 --> RP5["Log audit entry"]
+        RP5 --> RP6["Show temp password to Admin"]
+    end
+
+    subgraph "Change Own Password"
+        CP1["1. User navigates to Change Password"] --> CP2["Enter current, new, confirm"]
+        CP2 --> CP3["Frontend validates (Zod)"]
+        CP3 --> CP4["API: PUT /users/me/password"]
+        CP4 --> CP5["Backend verifies current password (bcrypt)"]
+        CP5 --> CP6{"Current correct?"}
+        CP6 -->|"No"| CP7["Return 401 Unauthorized"]
+        CP6 -->|"Yes"| CP8["Validate new password complexity"]
+        CP8 --> CP9{"Meets complexity?"}
+        CP9 -->|"No"| CP10["Return 422 Validation Error"]
+        CP9 -->|"Yes"| CP11["Hash new password (bcrypt)"]
+        CP11 --> CP12["UPDATE user password_hash + audit_log"]
+        CP12 --> CP13["Return success"]
+    end
+
+    subgraph "RBAC Enforcement"
+        R1["JWT decoded in middleware"] --> R2["role claim extracted"]
+        R2 --> R3{"Role == admin?"}
+        R3 -->|"Yes"| R4["Allow user management endpoints"]
+        R3 -->|"No"| R5["403 Forbidden"]
+    end
+
+    CU12 -.->|triggers| R1
+    D6 -.->|triggers| R1
+    CP4 -.->|triggers| R1
+
+    classDef create fill:#3b82f6,color:#fff;
+    classDef deactivate fill:#ef4444,color:#fff;
+    classDef reset fill:#f59e0b,color:#fff;
+    classDef change fill:#8b5cf6,color:#fff;
+    classDef rbac fill:#10b981,color:#fff;
+
+    class CU1,CU2,CU3,CU4,CU5,CU6,CU7,CU8,CU9,CU10,CU11,CU12,CU13,CU14 create
+    class D1,D2,D3,D4,D5,D6,D7,D8,D9 deactivate
+    class RP1,RP2,RP3,RP4,RP5,RP6 reset
+    class CP1,CP2,CP3,CP4,CP5,CP6,CP7,CP8,CP9,CP10,CP11,CP12,CP13 change
+    class R1,R2,R3,R4,R5 rbac

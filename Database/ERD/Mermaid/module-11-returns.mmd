@@ -1,0 +1,75 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE 11: RETURNS
+%% Tables: return_reasons, returns, return_items
+%% Dependencies: 02 Users, 05 Products, 08 Sales (sales, sale_items),
+%%              10 CreditSales (customers)
+%% ======================================================================
+
+erDiagram
+
+  %% Referenced parents
+  users {
+    int user_id PK
+    nvarchar(50) username
+  }
+  sales {
+    int sale_id PK
+    nvarchar(50) receipt_number
+  }
+  sale_items {
+    int sale_item_id PK
+    int sale_id FK
+    decimal(12,3) quantity
+    decimal(12,3) returned_qty
+  }
+  products {
+    int product_id PK
+    nvarchar(50) sku
+    nvarchar(200) product_name
+  }
+  customers {
+    int customer_id PK
+    nvarchar(30) customer_code
+    nvarchar(150) full_name
+  }
+
+  return_reasons {
+    int return_reason_id PK
+    nvarchar(30) reason_code
+    nvarchar(100) reason_name
+    bit is_active
+    datetime2(0) created_at
+  }
+
+  returns {
+    int return_id PK
+    nvarchar(50) return_number
+    int sale_id FK
+    int customer_id FK
+    int user_id FK
+    int return_reason_id FK
+    nvarchar(20) status
+    decimal(19,4) total_refund_amount
+    nvarchar(max) notes
+    datetime2(0) created_at
+    datetime2(0) updated_at
+  }
+
+  return_items {
+    int return_item_id PK
+    int return_id FK
+    int sale_item_id FK
+    int product_id FK
+    decimal(12,3) quantity
+    decimal(19,4) unit_price
+    decimal(19,4) refund_amount
+    datetime2(0) created_at
+  }
+
+  sales ||--o{ returns : "refunded via"
+  customers ||--o{ returns : "issued by"
+  users ||--o{ returns : "processed by"
+  return_reasons ||--o{ returns : "explained by"
+  returns ||--o{ return_items : "contains lines"
+  sale_items ||--o{ return_items : "referenced line"
+  products ||--o{ return_items : "returned product"

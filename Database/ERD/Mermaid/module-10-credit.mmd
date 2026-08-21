@@ -1,0 +1,71 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE 10: CREDIT SALES
+%% Tables: customers, credit_sales, credit_payments
+%% Dependencies: 02 Users, 08 Sales, 09 Payments
+%% ======================================================================
+
+erDiagram
+
+  %% Referenced parents
+  users {
+    int user_id PK
+    nvarchar(50) username
+  }
+  sales {
+    int sale_id PK
+    nvarchar(50) receipt_number
+    decimal(19,4) total_amount
+  }
+  payments {
+    int payment_id PK
+    int sale_id FK
+    decimal(19,4) amount
+  }
+
+  customers {
+    int customer_id PK
+    nvarchar(30) customer_code
+    nvarchar(150) full_name
+    nvarchar(30) phone
+    nvarchar(255) email
+    nvarchar(255) address
+    decimal(19,4) credit_limit
+    bit is_active
+    bit is_deleted
+    datetime2(0) deleted_at
+    int created_by FK
+    int updated_by
+    datetime2(0) created_at
+    datetime2(0) updated_at
+  }
+
+  credit_sales {
+    int credit_sale_id PK
+    int sale_id FK
+    int customer_id FK
+    decimal(19,4) total_amount
+    decimal(19,4) amount_paid
+    decimal(19,4) outstanding_balance
+    date due_date
+    nvarchar(20) status
+    datetime2(0) created_at
+    datetime2(0) updated_at
+  }
+
+  credit_payments {
+    int credit_payment_id PK
+    int credit_sale_id FK
+    int payment_id FK
+    decimal(19,4) amount
+    datetime2(0) payment_date
+    int received_by FK
+    nvarchar(255) notes
+    datetime2(0) created_at
+  }
+
+  users ||--o{ customers : "created by"
+  customers ||--o{ credit_sales : "opens ledger"
+  sales ||--o| credit_sales : "1 credit ledger (unique)"
+  credit_sales ||--o{ credit_payments : "settled by"
+  payments ||--o{ credit_payments : "optionally linked"
+  users ||--o{ credit_payments : "received by"

@@ -1,0 +1,66 @@
+%% SmartPOS — Application Flow
+%% Reference: 12_System_Architecture/README.md
+
+flowchart LR
+    subgraph CLIENT["Client (Browser)"]
+        A1["React SPA"]
+        A2["Axios HTTP Client"]
+        A3["JWT in Authorization Header"]
+    end
+
+    subgraph BACKEND["Backend (FastAPI)"]
+        B1["API Router"]
+        B2["Middleware
+        (Auth, CORS, Logging)"]
+        B3["Pydantic Validation"]
+        B4["Application Services"]
+        B5["Repository
+        (SQLAlchemy)"]
+        B6["Swagger UI"]
+    end
+
+    subgraph DATABASE["Database (SQL Server)"]
+        D1["Tables (Products,
+        Sales, Users, ...)"]
+        D2["Stored Procedures"]
+        D3["Views"]
+        D4["Triggers
+        (audit, stock)"]
+        D5["Functions"]
+    end
+
+    %% Flow
+    A1 -- "1. User interacts" --> A1
+    A1 -- "2. Axios request" --> A2
+    A2 -- "3. Bearer token" --> A3
+    A3 -- "4. HTTPS/REST/JSON" --> B1
+    B1 -- "5. Intercept" --> B2
+    B2 -- "6. Verify JWT, Check Role" --> B2
+    B2 -- "7. Route to handler" --> B1
+    B1 -- "8. Validate input" --> B3
+    B3 -- "9. Call service" --> B4
+    B4 -- "10. Call repository" --> B5
+    B5 -- "11. Execute SQL/SP" --> D1
+    D1 -- "12. Trigger fires" --> D4
+    D4 -- "13. Audit log + movement log" --> D1
+    D2 -- "14. Business logic" --> D1
+    D3 -- "15. Reporting query" --> D1
+    D5 -- "16. Computed value" --> D1
+    D1 -- "17. Return data" --> B5
+    B5 -- "18. Return ORM objects" --> B4
+    B4 -- "19. Format response" --> B1
+    B1 -- "20. Serialize JSON" --> B3
+    B3 -- "21. HTTP response" --> B2
+    B2 -- "22. Add headers" --> B1
+    B1 -- "23. HTTPS/JSON" --> A2
+    A2 -- "24. Parse response" --> A1
+    A1 -- "25. Update UI / TanStack Query cache" --> A1
+    B6 -- "26. Auto-generated docs" --> B1
+
+    classDef client fill:#3b82f6,color:#fff;
+    classDef backend fill:#8b52cf,color:#fff;
+    classDef database fill:#10b981,color:#fff;
+
+    class A1,A2,A3 client
+    class B1,B2,B3,B4,B5,B6 backend
+    class D1,D2,D3,D4,D5 database

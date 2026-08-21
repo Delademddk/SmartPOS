@@ -1,0 +1,70 @@
+%% SmartPOS — Inventory Flow
+%% Reference: 05_Functional_Requirements/FR-16 to FR-18, 11_System_Workflows/Restock
+
+flowchart TD
+    subgraph "Sales Flow"
+        S1["1. Create Sale"] --> S2["2. Validate Stock"]
+        S2 --> S3{"Stock Sufficient?"}
+        S3 -->|"No"| S4["Reject Sale (409)"]
+        S3 -->|"Yes"| S5["3. Decrement stock_quantity"]
+        S5 --> S6["4. Log stock_movement (type=sale)"]
+        S6 --> S7["5. Trigger: BR-INV-06 (low stock check)"]
+        S7 --> S8{"stock <= threshold?"}
+        S8 -->|"Yes"| S9["Create low-stock notification"]
+        S8 -->|"No"| S10["No notification"]
+    end
+
+    subgraph "Return Flow"
+        R1["1. Process Return"] --> R2["Validate Return Qty"]
+        R2 --> R3["2. Restore stock_quantity"]
+        R3 --> R4["3. Log stock_movement (type=return)"]
+        R4 --> R5["4. Trigger: low stock check"]
+    end
+
+    subgraph "Restock Flow"
+        RS1["1. Admin opens Restock modal"] --> RS2["Enter quantity, reference, notes"]
+        RS2 --> RS3["Validate quantity > 0"]
+        RS3 --> RS4["2. Increment stock_quantity"]
+        RS4 --> RS5["3. Log stock_movement (type=restock)"]
+        RS5 --> RS6["4. Clear low-stock notification if above threshold"]
+        RS6 --> RS7["5. Log audit entry"]
+    end
+
+    subgraph "Stock Adjustment Flow"
+        SA1["1. Admin opens Stock Adjustment modal"] --> SA2["Enter adjustment (signed), reason"]
+        SA2 --> SA3["Validate resulting stock >= 0"]
+        SA3 --> SA4["2. Update stock_quantity"]
+        SA4 --> SA5["3. Log stock_movement (type=adjustment)"]
+        SA5 --> SA6["4. Check low stock / clear notifications"]
+    end
+
+    subgraph "DB Triggers & Rules"
+        TR1["TRG_stock_decrease_after_sale"]
+        TR2["TRG_stock_increase_after_return"]
+        TR3["TRG_log_stock_movement"]
+        TR4["TRG_create_low_stock_notification"]
+        TR5["CHECK stock_quantity >= 0 (BR-INV-05)"]
+
+        S7 --> TR4
+        R5 --> TR4
+        S6 --> TR3
+        R4 --> TR3
+        S5 --> TR1
+        R3 --> TR2
+        S4 --> TR5
+        R3 --> TR5
+        RS4 --> TR5
+        SA4 --> TR5
+    end
+
+    classDef sales fill:#3b82f6,color:#fff;
+    classDef returns fill:#ef4444,color:#fff;
+    classDef restock fill:#10b981,color:#fff;
+    classDef adjust fill:#f59e0b,color:#fff;
+    classDef trigger fill:#8b5cf6,color:#fff;
+
+    class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10 sales
+    class R1,R2,R3,R4,R5 returns
+    class RS1,RS2,RS3,RS4,RS5,RS6,RS7 restock
+    class SA1,SA2,SA3,SA4,SA5,SA6 adjust
+    class TR1,TR2,TR3,TR4,TR5 trigger

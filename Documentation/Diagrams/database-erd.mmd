@@ -1,0 +1,201 @@
+%% SmartPOS — Database Entity Relationship Diagram (High-Level)
+%% Reference: 13_Database_Overview/README.md
+
+erDiagram
+    USERS {
+        int user_id PK "Auto-increment"
+        string username "Unique, 3-50 chars"
+        string email "Unique, valid format"
+        string full_name
+        string phone
+        string role "admin | cashier"
+        string password_hash "bcrypt/Argon2"
+        boolean is_active "Default: true"
+        datetime created_at
+        datetime updated_at
+    }
+
+    PRODUCTS {
+        int product_id PK
+        string sku "Unique"
+        string name
+        string description
+        decimal price "CHECK >= 0"
+        decimal cost "CHECK >= 0"
+        int stock_quantity "CHECK >= 0"
+        int low_stock_threshold "Default: 0"
+        int category_id FK
+        int supplier_id FK
+        boolean is_deleted "Soft delete flag"
+        datetime created_at
+        datetime updated_at
+    }
+
+    CATEGORIES {
+        int category_id PK
+        string name "Unique at parent level"
+        int parent_id FK "Self-referencing"
+        string description
+        boolean is_deleted
+        datetime created_at
+        datetime updated_at
+    }
+
+    SUPPLIERS {
+        int supplier_id PK
+        string name "Unique"
+        string contact_person
+        string email
+        string phone
+        string address
+        boolean is_deleted
+        datetime created_at
+        datetime updated_at
+    }
+
+    SALES {
+        int sale_id PK
+        string receipt_number "Sequential, unique"
+        int user_id FK
+        decimal total_amount
+        decimal amount_tendered
+        string payment_method "cash | card | credit"
+        boolean is_credit
+        string status "completed | voided | cancelled"
+        datetime created_at
+        datetime updated_at
+    }
+
+    SALE_ITEMS {
+        int item_id PK
+        int sale_id FK
+        int product_id FK
+        int quantity
+        decimal unit_price
+        decimal discount "Default: 0"
+    }
+
+    RETURNS {
+        int return_id PK
+        int sale_id FK
+        string reason
+        decimal refund_amount
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    RETURN_ITEMS {
+        int item_id PK
+        int return_id FK
+        int sale_item_id FK
+        int quantity
+        decimal unit_price
+    }
+
+    STOCK_MOVEMENTS {
+        int movement_id PK
+        int product_id FK
+        int quantity "Signed: +increase, -decrease"
+        string movement_type "sale | restock | return | adjustment | void"
+        string reference_id "e.g., sale_id or return_id"
+        int user_id FK "Actor"
+        string reason
+        datetime timestamp "UTC"
+    }
+
+    CREDIT_BALANCES {
+        int balance_id PK
+        string customer_name
+        int sale_id FK
+        decimal total_amount
+        decimal outstanding_balance "CHECK >= 0"
+        datetime created_at
+        datetime updated_at
+    }
+
+    CREDIT_PAYMENTS {
+        int payment_id PK
+        int balance_id FK
+        decimal amount
+        string payment_method "cash | card"
+        datetime created_at
+    }
+
+    AUDIT_LOGS {
+        int log_id PK
+        int user_id FK "Who did it"
+        string action_type
+        string resource_type
+        string resource_id
+        string details "JSON"
+        string ip_address
+        datetime timestamp "UTC"
+    }
+
+    NOTIFICATIONS {
+        int notification_id PK
+        int user_id FK
+        string title
+        string message
+        string type "low_stock | sale | return | system"
+        boolean is_read "Default: false"
+        string entity_id "Reference to related entity"
+        string entity_type
+        datetime created_at
+    }
+
+    SETTINGS {
+        string setting_key PK
+        string setting_value
+        string data_type "string | int | bool | json"
+        string description
+    }
+
+    REFRESH_TOKENS {
+        int token_id PK
+        int user_id FK
+        string token_hash "Hashed, never store raw token"
+        datetime expires_at
+        boolean revoked
+        datetime created_at
+    }
+
+    %% Relationships
+    USERS ||--o{ SALES : "creates"
+    USERS ||--o{ RETURNS : "processes"
+    USERS ||--o{ STOCK_MOVEMENTS : "actor"
+    USERS ||--o{ CREDIT_BALANCES : "created_by"
+    USERS ||--o{ CREDIT_PAYMENTS : "recorded_by"
+    USERS ||--o{ AUDIT_LOGS : "performed"
+    USERS ||--o{ NOTIFICATIONS : "recipient"
+    USERS ||--o{ REFRESH_TOKENS : "owns"
+
+    CATEGORIES ||--o{ PRODUCTS : "categorize"
+    CATEGORIES }o--|| CATEGORIES : "parent (self-ref)"
+
+    SUPPLIERS ||--o{ PRODUCTS : "supplies"
+
+    PRODUCTS ||--o{ SALE_ITEMS : "sold_in"
+    PRODUCTS ||--o{ STOCK_MOVEMENTS : "movement"
+
+    SALES ||--o{ SALE_ITEMS : "contains"
+    SALES ||--o{ RETURNS : "return_for"
+    SALES ||--o{ CREDIT_BALANCES : "creates"
+
+    SALE_ITEMS ||--o{ RETURN_ITEMS : "returned_in"
+
+    RETURNS ||--o{ RETURN_ITEMS : "contains"
+
+    CREDIT_BALANCES ||--o{ CREDIT_PAYMENTS : "settled_by"
+
+    %% Styling
+    classDef core_entity fill:#3b82f6,color:#fff;
+    classDef transaction fill:#10b981,color:#fff;
+    classDef audit_fill fill:#ef4444,color:#fff;
+    classDef config fill:#f59e0b,color:#fff;
+
+    class USERS,PRODUCTS,CATEGORIES,SUPPLIERS core_entity
+    class SALES,SALE_ITEMS,RETURNS,RETURN_ITEMS,STOCK_MOVEMENTS,CREDIT_BALANCES,CREDIT_PAYMENTS transaction
+    class AUDIT_LOGS,NOTIFICATIONS,REFRESH_TOKENS audit_fill
+    class SETTINGS config

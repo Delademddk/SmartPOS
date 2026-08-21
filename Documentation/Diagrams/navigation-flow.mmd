@@ -1,0 +1,137 @@
+%% SmartPOS — Frontend Navigation Flow
+%% Reference: 16_Frontend_Architecture/README.md, 17_UI_UX_Specification/README.md
+
+flowchart LR
+    subgraph "Public Routes"
+        LOGIN["/login
+        LoginPage"]
+    end
+
+    subgraph "Protected Routes"
+        AUTH_CHECK{"Authenticated?"}
+        AUTH_CHECK -- "No" --> REDIRECT_LOGIN["Redirect to /login"]
+        AUTH_CHECK -- "Yes" --> ROLE_CHECK{"Role Check"}
+        
+        ROLE_CHECK -- "Role: admin" --> ADMIN_ROUTES["Admin Routes"]
+        ROLE_CHECK -- "Role: cashier" --> CASHIER_ROUTES["Cashier Routes"]
+    end
+
+    subgraph "Admin Routes"
+        A_DASH["/admin/dashboard
+        AdminDashboardPage"]
+        A_PRODUCTS["/admin/products
+        ProductsPage"]
+        A_PRODUCT["/admin/products/:id
+        ProductDetailPage"]
+        A_PRODUCT_EDIT["/admin/products/:id/edit
+        ProductEditPage"]
+        A_CATEGORIES["/admin/categories
+        CategoriesPage"]
+        A_SUPPLIERS["/admin/suppliers
+        SuppliersPage"]
+        A_INVENTORY["/admin/inventory
+        InventoryPage"]
+        A_MOVEMENTS["/admin/inventory/movements
+        StockMovementsPage"]
+        A_SALES["/admin/sales
+        SalesListPage"]
+        A_SALE["/admin/sales/:id
+        SaleDetailPage"]
+        A_VOID["/admin/sales/:id/void
+        (action)"]
+        A_RETURNS["/admin/returns
+        ReturnsListPage"]
+        A_RETURN["/admin/returns/:id
+        ReturnDetailPage"]
+        A_CREDIT["/admin/credit-balances
+        CreditBalancesPage"]
+        A_USERS["/admin/users
+        UsersPage"]
+        A_REPORTS["/admin/reports
+        ReportsPage"]
+        A_SETTINGS["/admin/settings
+        SettingsPage"]
+        A_AUDIT["/admin/audit-logs
+        AuditLogsPage"]
+        A_NOTIFS["/admin/notifications
+        NotificationsPage"]
+    end
+
+    subgraph "Cashier Routes"
+        C_DASH["/cashier/dashboard
+        CashierDashboardPage"]
+        C_SALES_NEW["/cashier/sales/new
+        NewSalePage"]
+        C_MY_SALES["/cashier/sales
+        MySalesPage"]
+        C_SALE["/cashier/sales/:id
+        SaleDetailPage"]
+        C_RETURNS_NEW["/cashier/returns/new
+        NewReturnPage"]
+        C_CREDIT["/cashier/returns
+        ReturnsListPage (own)"]
+        C_NOTIFS["/notifications
+        NotificationsPage"]
+        C_SETTINGS["/admin/settings
+        SettingsPage (read-only)"]
+    end
+
+    subgraph "Shared Actions"
+        CHANGE_PW["/users/me/password
+        ChangePassword (any role)"]
+        LOGOUT["(Logout action)
+        Clears tokens, redirects to /login"]
+    end
+
+    %% Navigation Flows
+    LOGIN -->|On success| AUTH_CHECK
+    
+    A_DASH -->|Sidebar nav| A_PRODUCTS
+    A_PRODUCTS -->|Click product| A_PRODUCT
+    A_PRODUCT -->|Click Edit| A_PRODUCT_EDIT
+    A_PRODUCTS -->|Create| A_PRODUCT_EDIT
+    A_PRODUCTS -->|Adjust Stock| A_PRODUCT
+    
+    A_DASH --> A_CATEGORIES
+    A_DASH --> A_SUPPLIERS
+    A_DASH --> A_INVENTORY
+    A_INVENTORY -->|Restock| A_INVENTORY
+    A_INVENTORY --> A_MOVEMENTS
+    A_DASH --> A_SALES
+    A_SALES -->|View| A_SALE
+    A_SALE -->|Void| A_VOID
+    A_DASH --> A_RETURNS
+    A_RETURNS -->|View| A_RETURN
+    A_DASH --> A_CREDIT
+    A_DASH --> A_USERS
+    A_DASH --> A_REPORTS
+    A_DASH --> A_SETTINGS
+    A_DASH --> A_AUDIT
+    A_DASH --> A_NOTIFS
+
+    C_DASH -->|Quick action| C_SALES_NEW
+    C_DASH --> C_MY_SALES
+    C_MY_SALES -->|View| C_SALE
+    C_DASH --> C_RETURNS_NEW
+    C_DASH --> C_NOTIFS
+    C_DASH --> C_SETTINGS
+
+    %% Cross-role navigation
+    A_DASH -->|Click user menu| CHANGE_PW
+    C_DASH -->|Click user menu| CHANGE_PW
+    
+    A_DASH -->|Click user menu| LOGOUT
+    C_DASH -->|Click user menu| LOGOUT
+
+    %% Styles
+    classDef public fill:#ef4444,color:#fff;
+    classDef admin fill:#3b82f6,color:#fff;
+    classDef cashier fill:#f59e0b,color:#fff;
+    classDef shared fill:#10b981,color:#fff;
+    classDef logic fill:#8b52cf,color:#fff;
+
+    class LOGIN public
+    class A_DASH,A_PRODUCTS,A_PRODUCT,A_PRODUCT_EDIT,A_CATEGORIES,A_SUPPLIERS,A_INVENTORY,A_MOVEMENTS,A_SALES,A_SALE,A_VOID,A_RETURNS,A_RETURN,A_CREDIT,A_USERS,A_REPORTS,A_SETTINGS,A_AUDIT,A_NOTIFS admin
+    class C_DASH,C_SALES_NEW,C_MY_SALES,C_SALE,C_RETURNS_NEW,C_CREDIT,C_NOTIFS,C_SETTINGS cashier
+    class CHANGE_PW,LOGOUT shared
+    class AUTH_CHECK,ROLE_CHECK,REDIRECT_LOGIN logic

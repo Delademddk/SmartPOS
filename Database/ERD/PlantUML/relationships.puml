@@ -1,0 +1,269 @@
+@startuml
+' ======================================================================
+' SmartPOS Database - RELATIONSHIP-ONLY DIAGRAM (PlantUML)
+' Shows every table with its PK/FK columns only, plus cardinalities.
+' All FK relationships use NO ACTION (no cascade anywhere).
+' ======================================================================
+
+hide circle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam class {
+  BackgroundColor white
+  BorderColor #2d6a4f
+  ArrowColor #2d6a4f
+}
+title SmartPOS Database - Relationships
+
+' ===================== MODULE 01: AUTHENTICATION =====================
+class roles {
+  + int role_id <<PK>>
+}
+class permissions {
+  + int permission_id <<PK>>
+}
+class role_permissions {
+  + int role_permission_id <<PK>>
+  + int role_id <<FK>>
+  + int permission_id <<FK>>
+}
+
+' ===================== MODULE 02: USERS =====================
+class users {
+  + int user_id <<PK>>
+  + int role_id <<FK>>
+}
+class user_sessions {
+  + int session_id <<PK>>
+  + int user_id <<FK>>
+}
+class password_history {
+  + int history_id <<PK>>
+  + int user_id <<FK>>
+}
+class password_resets {
+  + int reset_id <<PK>>
+  + int user_id <<FK>>
+}
+
+' ===================== MODULE 03: BUSINESS =====================
+class tax_rates {
+  + int tax_rate_id <<PK>>
+}
+
+' ===================== MODULE 04: CATEGORIES =====================
+class categories {
+  + int category_id <<PK>>
+  + int parent_id <<FK>>
+  + int created_by <<FK>>
+  + int deleted_by <<FK>>
+}
+
+' ===================== MODULE 05: PRODUCTS =====================
+class products {
+  + int product_id <<PK>>
+  + int category_id <<FK>>
+  + int supplier_id <<FK>>
+  + int created_by <<FK>>
+  + int deleted_by <<FK>>
+}
+class product_images {
+  + int image_id <<PK>>
+  + int product_id <<FK>>
+}
+
+' ===================== MODULE 06: SUPPLIERS =====================
+class suppliers {
+  + int supplier_id <<PK>>
+  + int created_by <<FK>>
+  + int deleted_by <<FK>>
+}
+class supplier_contacts {
+  + int contact_id <<PK>>
+  + int supplier_id <<FK>>
+}
+class supplier_history {
+  + int history_id <<PK>>
+  + int supplier_id <<FK>>
+  + int changed_by <<FK>>
+}
+
+' ===================== MODULE 07: INVENTORY =====================
+class inventory {
+  + int inventory_id <<PK>>
+  + int product_id <<FK>>
+}
+class inventory_transactions {
+  + int transaction_id <<PK>>
+  + int product_id <<FK>>
+  + int user_id <<FK>>
+}
+class stock_reconciliations {
+  + int reconciliation_id <<PK>>
+  + int product_id <<FK>>
+  + int user_id <<FK>>
+  + int transaction_id <<FK>>
+}
+class low_stock_alerts {
+  + int alert_id <<PK>>
+  + int product_id <<FK>>
+}
+
+' ===================== MODULE 08: SALES =====================
+class sales {
+  + int sale_id <<PK>>
+  + int user_id <<FK>>
+  + int customer_id <<FK>>
+  + int tax_rate_id <<FK>>
+}
+class sale_items {
+  + int sale_item_id <<PK>>
+  + int sale_id <<FK>>
+  + int product_id <<FK>>
+}
+
+' ===================== MODULE 09: PAYMENTS =====================
+class payment_methods {
+  + int payment_method_id <<PK>>
+}
+class payments {
+  + int payment_id <<PK>>
+  + int sale_id <<FK>>
+  + int payment_method_id <<FK>>
+  + int received_by <<FK>>
+}
+class receipts {
+  + int receipt_id <<PK>>
+  + int sale_id <<FK>>
+  + int generated_by <<FK>>
+}
+
+' ===================== MODULE 10: CREDIT SALES =====================
+class customers {
+  + int customer_id <<PK>>
+  + int created_by <<FK>>
+}
+class credit_sales {
+  + int credit_sale_id <<PK>>
+  + int sale_id <<FK>>
+  + int customer_id <<FK>>
+}
+class credit_payments {
+  + int credit_payment_id <<PK>>
+  + int credit_sale_id <<FK>>
+  + int payment_id <<FK>>
+  + int received_by <<FK>>
+}
+
+' ===================== MODULE 11: RETURNS =====================
+class return_reasons {
+  + int return_reason_id <<PK>>
+}
+class returns {
+  + int return_id <<PK>>
+  + int sale_id <<FK>>
+  + int customer_id <<FK>>
+  + int user_id <<FK>>
+  + int return_reason_id <<FK>>
+}
+class return_items {
+  + int return_item_id <<PK>>
+  + int return_id <<FK>>
+  + int sale_item_id <<FK>>
+  + int product_id <<FK>>
+}
+
+' ===================== MODULE 12: NOTIFICATIONS =====================
+class notification_types {
+  + int notification_type_id <<PK>>
+}
+class notifications {
+  + int notification_id <<PK>>
+  + int user_id <<FK>>
+  + int notification_type_id <<FK>>
+}
+class notification_history {
+  + int history_id <<PK>>
+  + int notification_id <<FK>>
+  + int user_id <<FK>>
+  + int notification_type_id <<FK>>
+}
+
+' ===================== MODULE 15: SETTINGS =====================
+class user_settings {
+  + int user_setting_id <<PK>>
+  + int user_id <<FK>>
+}
+
+' ===================== MODULE 16: AUDIT & LOGGING =====================
+class audit_logs {
+  + int log_id <<PK>>
+  + int user_id <<FK>>
+}
+class activity_logs {
+  + int activity_id <<PK>>
+  + int user_id <<FK>>
+}
+class error_logs {
+  + int error_id <<PK>>
+  + int user_id <<FK>>
+}
+class security_logs {
+  + int security_log_id <<PK>>
+  + int user_id <<FK>>
+}
+
+' ===================== RELATIONSHIPS (1:N, NO ACTION) =====================
+roles "1" o-- "0..*" role_permissions : owns grants
+permissions "1" o-- "0..*" role_permissions : granted via
+roles "1" o-- "0..*" users : assigns role
+users "1" o-- "0..*" user_sessions : owns sessions
+users "1" o-- "0..*" password_history : tracks hashes
+users "1" o-- "0..*" password_resets : issues resets
+categories "1" o-- "0..*" categories : parent category (self)
+categories "1" o-- "0..*" products : categorizes
+suppliers "1" o-- "0..*" products : supplies
+products "1" o-- "0..*" product_images : has images
+suppliers "1" o-- "0..*" supplier_contacts : has contacts
+suppliers "1" o-- "0..*" supplier_history : records history
+products "1" o-- "0..1" inventory : 1 snapshot (unique)
+products "1" o-- "0..*" inventory_transactions : logs movements
+users "1" o-- "0..*" inventory_transactions : performed by
+products "1" o-- "0..*" stock_reconciliations : reconciled for
+users "1" o-- "0..*" stock_reconciliations : counted by
+inventory_transactions "1" o-- "0..*" stock_reconciliations : produced by
+products "1" o-- "0..*" low_stock_alerts : raises alerts
+users "1" o-- "0..*" sales : cashier
+customers "1" o-- "0..*" sales : buyer (indexed ref, no FK)
+tax_rates "1" o-- "0..*" sales : applied to
+sales "1" o-- "0..*" sale_items : contains lines
+products "1" o-- "0..*" sale_items : sold as
+sales "1" o-- "0..*" payments : paid by
+payment_methods "1" o-- "0..*" payments : tendered via
+users "1" o-- "0..*" payments : received by
+sales "1" o-- "0..*" receipts : generates
+users "1" o-- "0..*" receipts : generated by
+customers "1" o-- "0..*" credit_sales : opens ledger
+sales "1" o-- "0..1" credit_sales : 1 credit ledger (unique)
+credit_sales "1" o-- "0..*" credit_payments : settled by
+payments "1" o-- "0..*" credit_payments : optionally linked
+users "1" o-- "0..*" credit_payments : received by
+sales "1" o-- "0..*" returns : refunded via
+customers "1" o-- "0..*" returns : issued by
+users "1" o-- "0..*" returns : processed by
+return_reasons "1" o-- "0..*" returns : explained by
+returns "1" o-- "0..*" return_items : contains lines
+sale_items "1" o-- "0..*" return_items : referenced line
+products "1" o-- "0..*" return_items : returned product
+users "1" o-- "0..*" notifications : receives
+notification_types "1" o-- "0..*" notifications : typed as
+notifications "1" o-- "0..*" notification_history : archived to
+users "1" o-- "0..*" notification_history : recipient
+notification_types "1" o-- "0..*" notification_history : typed as
+users "1" o-- "0..*" user_settings : preferences
+users "1" o-- "0..*" audit_logs : actor
+users "1" o-- "0..*" activity_logs : performed
+users "1" o-- "0..*" error_logs : triggered
+users "1" o-- "0..*" security_logs : subject
+
+@enduml
