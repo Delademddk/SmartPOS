@@ -37,6 +37,15 @@ function processQueue(error: unknown) {
   failedQueue = [];
 }
 
+function redirectToLogin() {
+  // Avoid hard page reloads when already on the login page. A 401 with no
+  // session is expected there (e.g. unauthenticated settings calls); reloading
+  // would re-mount the app and re-fire those requests in an endless loop.
+  if (window.location.pathname !== "/login") {
+    window.location.replace("/login");
+  }
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<ApiErrorResponse>) => {
@@ -60,7 +69,7 @@ apiClient.interceptors.response.use(
       if (!refreshToken) {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
-        window.location.href = "/login";
+        redirectToLogin();
         isRefreshing = false;
         return Promise.reject(error);
       }
@@ -85,7 +94,7 @@ apiClient.interceptors.response.use(
         processQueue(refreshError);
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
-        window.location.href = "/login";
+        redirectToLogin();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

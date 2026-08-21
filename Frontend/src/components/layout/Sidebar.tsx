@@ -9,7 +9,6 @@ import {
   ShoppingCart,
   CreditCard,
   UserCheck,
-  RotateCcw,
   BarChart3,
   Settings,
   Shield,
@@ -40,13 +39,12 @@ const navItems: NavItem[] = [
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/inventory", label: "Inventory", icon: Warehouse },
   { to: "/sales", label: "Sales", icon: CreditCard },
-  { to: "/returns", label: "Returns", icon: RotateCcw },
   { to: "/credits", label: "Credit Sales", icon: UserCheck },
   { to: "/users", label: "Users", icon: Users, adminOnly: true },
   { to: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
-  { to: "/settings", label: "Settings", icon: Settings, adminOnly: true },
   { to: "/audit", label: "Audit Logs", icon: Shield, adminOnly: true },
   { to: "/notifications", label: "Notifications", icon: Bell },
+  { to: "/settings", label: "Settings", icon: Settings, adminOnly: true },
 ];
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
@@ -72,7 +70,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center justify-between px-6 border-b border-gray-200">
+        <div className="flex h-16 items-center justify-between px-6 border-gray-200">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
               <ShoppingCart className="h-5 w-5 text-white" />
@@ -84,7 +82,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 ">
           {filteredItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + "/");

@@ -1,0 +1,133 @@
+%% SmartPOS — Deployment Architecture
+%% Reference: 20_Deployment_Strategy/README.md
+
+graph TD
+    subgraph INTERNET["Internet / LAN"]
+        CLIENT["End Users
+        (Browsers on PCs, Tablets, Mobile)"]
+    end
+
+    subgraph PRODUCTION["Production Environment"]
+        LB["Load Balancer / Reverse Proxy
+        (Nginx, NGINX Plus, or Azure Load Balancer)"]
+        
+        subgraph FRONTEND_LAYER["Frontend Layer"]
+            FE_POD1["Frontend Pod 1
+            (React Static Files)"]
+            FE_POD2["Frontend Pod 2
+            (React Static Files)"]
+            FE_POD3["Frontend Pod N
+            (React Static Files)"]
+        end
+
+        subgraph BACKEND_LAYER["Backend Layer (App)"]
+            BE_POD1["Backend Pod 1
+            (FastAPI + Gunicorn)"]
+            BE_POD2["Backend Pod 2
+            (FastAPI + Gunicorn)"]
+            BE_POD3["Backend Pod N
+            (FastAPI + Gunicorn)"]
+        end
+
+        subgraph DB_LAYER["Database Layer"]
+            DB_PRIMARY["SQL Server Primary
+            (Read/Write)"]
+            DB_REPLICA1["SQL Server Read Replica 1"]
+            DB_REPLICA2["SQL Server Read Replica N"]
+            DB_BACKUP["Backup Server
+            (Azure Blob / NAS)"]
+        end
+
+        subgraph MONITORING["Monitoring & Logging"]
+            LOGS["Log Aggregator
+            (ELK / Splunk)"]
+            MON["Prometheus + Grafana"]
+            ALERT["Alert Manager
+            (PagerDuty, Slack)"]
+        end
+    end
+
+    subgraph CONTAINER_ORCH["Container Orchestration"]
+        K8S["Kubernetes Cluster
+        (Docker Images)"]
+        REG["Container Registry
+        (Azure CR / Docker Hub)"]
+    end
+
+    subgraph CI_CD["CI/CD Pipeline"]
+        CI["GitHub Actions
+        (Build, Test, Scan)"]
+        CD["Deploy Pipeline
+        (Staging → Production)"]
+    end
+
+    %% Connections
+    CLIENT -- HTTPS/TLS --> LB
+    LB -- HTTP/HTTPS --> FE_POD1
+    LB -- HTTP/HTTPS --> FE_POD2
+    LB -- HTTP/HTTPS --> FE_POD3
+
+    BE_POD1 -- JDBC/SQLAlchemy --> DB_PRIMARY
+    BE_POD2 -- JDBC/SQLAlchemy --> DB_PRIMARY
+    BE_POD3 -- JDBC/SQLAlchemy --> DB_PRIMARY
+
+    DB_PRIMARY -- Replication --> DB_REPLICA1
+    DB_PRIMARY -- Replication --> DB_REPLICA2
+    DB_PRIMARY -- Backup --> DB_BACKUP
+
+    BE_POD1 -- Logs --> LOGS
+    BE_POD2 -- Logs --> LOGS
+    BE_POD3 -- Logs --> LOGS
+    DB_PRIMARY -- Logs --> LOGS
+
+    BE_POD1 --> MON
+    BE_POD2 --> MON
+    BE_POD3 --> MON
+    DB_PRIMARY --> MON
+
+    LOGS --> ALERT
+    MON --> ALERT
+
+    CI --> REG
+    CD --> K8S
+    K8S --> BE_POD1
+    K8S --> BE_POD2
+    K8S --> BE_POD3
+    K8S --> FE_POD1
+    K8S --> FE_POD2
+    K8S --> FE_POD3
+
+    %% Styles
+    classDef frontend fill:#3b82f6,color:#fff;
+    classDef backend fill:#8b52cf,color:#fff;
+    classDef database fill:#10b981,color:#fff;
+    classDef infra fill:#6b7280,color:#fff;
+    classDef monitoring fill:#f59e0b,color:#fff;
+    classDef external fill:#ef4444,color:#fff;
+
+    class FE_POD1,FE_POD2,FE_POD3 frontend
+    class BE_POD1,BE_POD2,BE_POD3 backend
+    class DB_PRIMARY,DB_REPLICA1,DB_REPLICA2,DB_BACKUP database
+    class LB,K8S,REG,CI,CD infra
+    class LOGS,MON,ALERT monitoring
+    class CLIENT external
+
+    linkStyle 1 stroke:#3b82f6,stroke-width:2px;
+    linkStyle 2 stroke:#3b82f6,stroke-width:2px;
+    linkStyle 3 stroke:#3b82f6,stroke-width:2px;
+    linkStyle 4 stroke:#8b52cf,stroke-width:2px;
+    linkStyle 5 stroke:#8b52cf,stroke-width:2px;
+    linkStyle 6 stroke:#8b52cf,stroke-width:2px;
+    linkStyle 7 stroke:#10b981,stroke-width:2px;
+    linkStyle 8 stroke:#10b981,stroke-width:2px;
+    linkStyle 9 stroke:#10b981,stroke-width:2px;
+    linkStyle 10 stroke:#10b981,stroke-width:2px;
+    linkStyle 11 stroke:#f59e0b,stroke-width:2px;
+    linkStyle 12 stroke:#f59e0b,stroke-width:2px;
+    linkStyle 13 stroke:#f59e0b,stroke-width:2px;
+    linkStyle 14 stroke:#6b7280,stroke-width:2px;
+    linkStyle 15 stroke:#6b7280,stroke-width:2px;
+    linkStyle 16 stroke:#6b7280,stroke-width:2px;
+    linkStyle 17 stroke:#6b7280,stroke-width:2px;
+    linkStyle 18 stroke:#6b7280,stroke-width:2px;
+    linkStyle 19 stroke:#ef4444,stroke-width:3px;

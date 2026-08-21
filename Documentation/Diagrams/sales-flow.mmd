@@ -1,0 +1,61 @@
+%% SmartPOS — Sales Flow (End-to-End)
+%% Reference: 05_Functional_Requirements/FR-19, 11_System_Workflows/Create Sale
+
+sequenceDiagram
+    participant C as Cashier (Browser)
+    participant F as Frontend (SPA)
+    participant A as Backend API
+    participant D as Database (SQL Server)
+
+    %% === Search Products ===
+    C->>F: Type in product search box (min 2 chars)
+    F->>A: GET /api/v1/products?search=query&page=1
+    A->>D: SELECT products WHERE name LIKE '%query%' ORDER BY name
+    D-->>A: Paginated product results
+    A-->>F: JSON: products with stock levels
+    F->>F: Render search results (SKU, name, price, stock)
+
+    %% === Add to Cart ===
+    C->>F: Click product or press Enter
+    F->>F: Add to cart (quantity = 1)
+    F->>F: Auto-search for next item (focus stays on search)
+
+    %% === Complete Sale ===
+    C->>F: Click "Complete Sale" or press Ctrl+Enter
+    F->>F: Validate cart (all quantities in stock)
+    F->>A: POST /api/v1/sales {items: [...], payment_method, amount_tendered, is_credit}
+    
+    Note over A,D: Transaction begins
+    
+    A->>A: Validate each product exists
+    A->>A: Validate stock_quantity >= requested for each
+    
+    alt Stock Insufficient
+        A-->>F: 409 {error: "Insufficient stock for: Wireless Mouse (need 5, have 3)"}
+        Note over A,D: Transaction rolled back
+    else Stock Sufficient
+        A->>D: INSERT INTO sales (header) → generates sale_id, receipt_number
+        D-->>A: sale_id
+        A->>D: INSERT INTO sale_items (for each cart item)
+        D-->>A: item_ids
+        A->>D: UPDATE products SET stock_quantity -= quantity (row lock)
+        D-->>A: Updated rows
+        A->>D: INSERT INTO stock_movements (type=sale, each item)
+        A->>D: INSERT INTO audit_logs (SALE_CREATED)
+        
+        alt Credit Sale (is_credit = true)
+            A->>D: INSERT INTO credit_balances (customer_name, total_amount)
+            A->>D: INSERT INTO audit_logs (CREDIT_SALE_CREATED)
+        end
+        
+        Note over D: Triggers fire: low_stock_notification if threshold reached
+        
+        A->>D: COMMIT TRANSACTION
+        D-->>A: Success
+        A-->>F: 201 {sale_id, receipt_number, total, change, items: [...]}
+        
+        F->>F: Show success screen with receipt
+        F->>C: Display receipt (print or download)
+        F->>A: GET /api/v1/dashboard/cashier (invalidate cache)
+        A-->>F: Updated dashboard data (TanStack Query refetch)
+    end

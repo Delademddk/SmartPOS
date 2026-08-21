@@ -1,0 +1,62 @@
+%% SmartPOS — Authentication Flow (JWT)
+%% Reference: 18_Security_Architecture/README.md
+
+sequenceDiagram
+    participant U as User (Browser)
+    participant F as Frontend (SPA)
+    participant A as Backend API (FastAPI)
+    participant D as Database (SQL Server)
+
+    %% === LOGIN ===
+    U->>F: Enter username + password, click Login
+    F->>A: POST /api/v1/auth/login {username, password}
+    A->>D: SELECT user WHERE username = ? (parameterized)
+    D-->>A: Return user record (password_hash, role, is_active)
+    A->>A: Verify password (bcrypt)
+    alt Credentials Valid & Active
+        A->>A: Create access_token (JWT, 15 min)
+        A->>A: Create refresh_token (JWT, 7 days)
+        A->>D: INSERT refresh_token_hash (hashed)
+        A->>D: INSERT audit_log (LOGIN_SUCCESS)
+        A-->>F: 200 {access_token, refresh_token, user}
+        F->>F: Store tokens (localStorage / HttpOnly cookie)
+        F->>F: Redirect to role dashboard
+        F->>A: GET /api/v1/dashboard/admin (Bearer token)
+        A->>A: Verify JWT signature + expiry
+        A->>A: Check role claim
+        A-->>F: 200 Dashboard data
+    else Credentials Invalid or Locked
+        A->>D: INSERT audit_log (LOGIN_FAILED)
+        A-->>F: 401 {error: "Invalid credentials"}
+        F->>F: Show error message, increment fail counter
+        alt 5 consecutive failures
+            A->>A: Lock account (is_active = false or lockout flag)
+        end
+    end
+
+    %% === REFRESH TOKEN ===
+    Note over F,A: After 15 minutes (access token expiry)
+    F->>A: POST /api/v1/auth/refresh {refresh_token}
+    A->>A: Verify refresh token (signature, expiry, not revoked)
+    A->>D: SELECT token_hash WHERE token_hash = ? AND revoked = false
+    alt Token Valid
+        A->>A: Create NEW access_token + NEW refresh_token
+        A->>D: Mark OLD refresh_token as revoked
+        A->>D: INSERT NEW refresh_token_hash
+        A->>D: INSERT audit_log (TOKEN_REFRESHED)
+        A-->>F: 200 {access_token, refresh_token}
+        F->>F: Replace stored tokens
+    else Token Invalid/Revoked/Expired
+        A->>D: INSERT audit_log (REFRESH_FAILED)
+        A-->>F: 401 {error: "Invalid or expired token"}
+        F->>F: Redirect to /login
+    end
+
+    %% === LOGOUT ===
+    U->>F: Click "Logout"
+    F->>A: POST /api/v1/auth/logout {refresh_token}
+    A->>A: Parse JWT, extract token identity
+    A->>D: UPDATE refresh_tokens SET revoked = true
+    A->>D: INSERT audit_log (LOGOUT)
+    A-->>F: 200 {success: true}
+    F->>F: Clear token storage, redirect to /login

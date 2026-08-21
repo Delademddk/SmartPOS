@@ -1,0 +1,65 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE 05: PRODUCTS
+%% Tables: products, product_images
+%% Dependencies: 04 Categories, 06 Suppliers, 02 Users
+%% ======================================================================
+
+erDiagram
+
+  %% Referenced parents
+  categories {
+    int category_id PK
+    nvarchar(100) category_name
+    int parent_id FK
+    bit is_active
+    bit is_deleted
+  }
+  suppliers {
+    int supplier_id PK
+    nvarchar(30) supplier_code
+    nvarchar(150) supplier_name
+    bit is_active
+  }
+  users {
+    int user_id PK
+    nvarchar(50) username
+  }
+
+  products {
+    int product_id PK
+    nvarchar(50) sku
+    nvarchar(50) barcode
+    nvarchar(200) product_name
+    nvarchar(max) description
+    int category_id FK
+    int supplier_id FK
+    nvarchar(20) unit
+    decimal(19,4) unit_price
+    decimal(19,4) cost_price
+    nvarchar(500) image_url
+    int low_stock_threshold
+    bit is_service
+    bit is_active
+    bit is_deleted
+    datetime2(0) deleted_at
+    int deleted_by FK
+    datetime2(0) created_at
+    datetime2(0) updated_at
+    int created_by FK
+    int updated_by
+  }
+
+  product_images {
+    int image_id PK
+    int product_id FK
+    nvarchar(500) image_url
+    nvarchar(200) image_alt
+    bit is_primary
+    int sort_order
+    datetime2(0) created_at
+  }
+
+  categories ||--o{ products : "categorizes"
+  suppliers ||--o{ products : "supplies"
+  users ||--o{ products : "created by"
+  products ||--o{ product_images : "has images"

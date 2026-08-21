@@ -1,0 +1,77 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE 07: INVENTORY
+%% Tables: inventory, inventory_transactions, stock_reconciliations,
+%%         low_stock_alerts
+%% Dependencies: 05 Products, 02 Users
+%% ======================================================================
+
+erDiagram
+
+  %% Referenced parents
+  products {
+    int product_id PK
+    nvarchar(50) sku
+    nvarchar(200) product_name
+    int low_stock_threshold
+  }
+  users {
+    int user_id PK
+    nvarchar(50) username
+  }
+
+  inventory {
+    int inventory_id PK
+    int product_id FK
+    int quantity_on_hand
+    int quantity_reserved
+    int reorder_level
+    datetime2(0) last_restocked_at
+    datetime2(0) last_sold_at
+    datetime2(0) updated_at
+  }
+
+  inventory_transactions {
+    int transaction_id PK
+    int product_id FK
+    nvarchar(30) movement_type
+    int quantity
+    int quantity_before
+    int quantity_after
+    decimal(19,4) unit_cost
+    nvarchar(50) reference_type
+    nvarchar(100) reference_id
+    nvarchar(255) reason
+    int user_id FK
+    datetime2(0) created_at
+  }
+
+  stock_reconciliations {
+    int reconciliation_id PK
+    int product_id FK
+    int system_quantity
+    int counted_quantity
+    int difference
+    nvarchar(30) adjustment_type
+    nvarchar(255) reason
+    int user_id FK
+    int transaction_id FK
+    datetime2(0) reconciled_at
+  }
+
+  low_stock_alerts {
+    int alert_id PK
+    int product_id FK
+    int quantity_on_hand
+    int low_stock_threshold
+    nvarchar(20) status
+    datetime2(0) raised_at
+    datetime2(0) resolved_at
+  }
+
+  products ||--o| inventory : "1 snapshot (unique)"
+  products ||--o{ inventory_transactions : "logs movements"
+  users ||--o{ inventory_transactions : "performed by"
+  products ||--o{ stock_reconciliations : "reconciled for"
+  users ||--o{ stock_reconciliations : "counted by"
+  inventory_transactions ||--o{ stock_reconciliations : "produced by"
+  products ||--o{ low_stock_alerts : "raises alerts"

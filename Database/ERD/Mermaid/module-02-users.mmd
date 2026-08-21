@@ -1,0 +1,70 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE 02: USERS
+%% Tables: users, user_sessions, password_history, password_resets
+%% Dependencies: 01 Authentication (roles.role_id)
+%% ======================================================================
+
+erDiagram
+
+  %% Referenced parent (Module 01)
+  roles {
+    int role_id PK
+    nvarchar(50) role_code
+    nvarchar(100) role_name
+    bit is_active
+  }
+
+  users {
+    int user_id PK
+    nvarchar(50) username
+    nvarchar(255) email
+    nvarchar(255) password_hash
+    nvarchar(150) full_name
+    nvarchar(30) phone
+    int role_id FK
+    bit is_active
+    bit is_locked
+    tinyint failed_login_attempts
+    bit must_change_password
+    datetime2(0) last_login_at
+    nvarchar(45) last_login_ip
+    bit is_deleted
+    datetime2(0) deleted_at
+    int deleted_by
+  }
+
+  user_sessions {
+    int session_id PK
+    int user_id FK
+    nvarchar(255) session_token
+    nvarchar(45) ip_address
+    nvarchar(255) user_agent
+    datetime2(0) issued_at
+    datetime2(0) expires_at
+    bit is_revoked
+    datetime2(0) revoked_at
+    int revoked_by
+  }
+
+  password_history {
+    int history_id PK
+    int user_id FK
+    nvarchar(255) password_hash
+    datetime2(0) changed_at
+    int changed_by
+  }
+
+  password_resets {
+    int reset_id PK
+    int user_id FK
+    nvarchar(255) reset_token
+    nvarchar(45) ip_address
+    datetime2(0) requested_at
+    datetime2(0) expires_at
+    datetime2(0) used_at
+  }
+
+  roles ||--o{ users : "assigns role"
+  users ||--o{ user_sessions : "owns sessions"
+  users ||--o{ password_history : "tracks hashes"
+  users ||--o{ password_resets : "issues resets"

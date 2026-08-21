@@ -1,0 +1,230 @@
+%% SmartPOS — Project Folder Structure
+%% Reference: 21_Project_Structure/README.md
+
+graph TD
+    ROOT["SmartPOS/ (Root Project)"]
+    
+    DOCS["Documentation/"]
+    DOCS_01["01_Project_Charter/"]
+    DOCS_02["02_Project_Overview/"]
+    DOCS_03["03_Software_Requirements/"]
+    DOCS_04["04_Business_Requirements/"]
+    DOCS_05["05_Functional_Requirements/"]
+    DOCS_06["06_Non_Functional_Requirements/"]
+    DOCS_07["07_User_Roles_Permissions/"]
+    DOCS_08["08_User_Stories/"]
+    DOCS_09["09_Use_Cases/"]
+    DOCS_10["10_Business_Rules/"]
+    DOCS_11["11_System_Workflows/"]
+    DOCS_12["12_System_Architecture/"]
+    DOCS_13["13_Database_Overview/"]
+    DOCS_14["14_API_Architecture/"]
+    DOCS_15["15_Backend_Architecture/"]
+    DOCS_16["16_Frontend_Architecture/"]
+    DOCS_17["17_UI_UX_Specification/"]
+    DOCS_18["18_Security_Architecture/"]
+    DOCS_19["19_Testing_Strategy/"]
+    DOCS_20["20_Deployment_Strategy/"]
+    DOCS_21["21_Project_Structure/"]
+    DOCS_22["22_Coding_Standards/"]
+    DOCS_23["23_Glossary/"]
+    DOCS_24["24_Appendices/"]
+    MASTER_DOC["Master_Documentation/"]
+    DIAGRAMS["Diagrams/"]
+    WIREFRAMES["Wireframes/"]
+    
+    DB["Database/"]
+    DB_DOC["Documentation/"]
+    DB_ERD["ERD/"]
+    DB_DIAGRAMS["Diagrams/"]
+    DB_SQL["SQL/"]
+    DB_SQL_TABLES["Tables/"]
+    DB_SQL_CONSTRAINTS["Constraints/"]
+    DB_SQL_INDEXES["Indexes/"]
+    DB_SQL_VIEWS["Views/"]
+    DB_SQL_SPS["StoredProcedures/"]
+    DB_SQL_FNS["Functions/"]
+    DB_SQL_TRIGGERS["Triggers/"]
+    DB_SEED["SeedData/"]
+    DB_SAMPLE["SampleData/"]
+    DB_MIGRATIONS["Migrations/"]
+    DB_BACKUP["Backup/"]
+    DB_SCRIPTS["Scripts/"]
+    DB_TESTING["Testing/"]
+    
+    BACKEND["Backend/"]
+    BE_APP["app/"]
+    BE_API["api/"]
+    BE_ROUTERS["routers/"]
+    BE_SCHEMAS["schemas/"]
+    BE_DEPS["dependencies/"]
+    BE_SERVICES["services/"]
+    BE_REPOS["repositories/"]
+    BE_MODELS["models/"]
+    BE_DATABASE["database/"]
+    BE_MIDDLEWARE["middleware/"]
+    BE_CORE["core/"]
+    BE_UTILS["utils/"]
+    BE_TESTS["tests/"]
+    BE_ALEMBIC["alembic/"]
+    BE_REQ["requirements.txt"]
+    BE_ENV[".env / .env.example"]
+    
+    FRONTEND["Frontend/"]
+    FE_SRC["src/"]
+    FE_ASSETS["assets/"]
+    FE_COMPONENTS["components/"]
+    FE_COMPONENTS_UI["ui/"]
+    FE_COMPONENTS_LAYOUT["layout/"]
+    FE_COMPONENTS_FORMS["forms/"]
+    FE_COMPONENTS_COMMON["common/"]
+    FE_PAGES["pages/"]
+    FE_PAGES_AUTH["auth/"]
+    FE_PAGES_ADMIN["admin/"]
+    FE_PAGES_CASHIER["cashier/"]
+    FE_PAGES_SHARED["shared/"]
+    FE_LAYOUTS["layouts/"]
+    FE_HOOKS["hooks/"]
+    FE_SERVICES["services/"]
+    FE_API["api/"]
+    FE_CONTEXT["context/"]
+    FE_TYPES["types/"]
+    FE_UTILS["utils/"]
+    FE_ROUTES["routes/"]
+    FE_PUBLIC["public/"]
+    FE_PKG["package.json"]
+    FE_VITE["vite.config.ts"]
+    FE_TAIL["tailwind.config.js"]
+    FE_ENV[".env / .env.example"]
+    
+    TESTING["Testing/"]
+    DEPLOY["Deployment/"]
+    SCRIPTS["Scripts/"]
+    ASSETS["Assets/"]
+    AI["AI/"]
+    ROOT_README["README.md"]
+    LICENSE["LICENSE"]
+    CHANGELOG["CHANGELOG.md"]
+    GITIGNORE[".gitignore"]
+    
+    ROOT --> DOCS
+    ROOT --> DB
+    ROOT --> BACKEND
+    ROOT --> FRONTEND
+    ROOT --> TESTING
+    ROOT --> DEPLOY
+    ROOT --> SCRIPTS
+    ROOT --> ASSETS
+    ROOT --> AI
+    ROOT --> ROOT_README
+    ROOT --> LICENSE
+    ROOT --> CHANGELOG
+    ROOT --> GITIGNORE
+    
+    DOCS --> DOCS_01
+    DOCS --> DOCS_02
+    DOCS --> DOCS_03
+    DOCS --> DOCS_04
+    DOCS --> DOCS_05
+    DOCS --> DOCS_06
+    DOCS --> DOCS_07
+    DOCS --> DOCS_08
+    DOCS --> DOCS_09
+    DOCS --> DOCS_10
+    DOCS --> DOCS_11
+    DOCS --> DOCS_12
+    DOCS --> DOCS_13
+    DOCS --> DOCS_14
+    DOCS --> DOCS_15
+    DOCS --> DOCS_16
+    DOCS --> DOCS_17
+    DOCS --> DOCS_18
+    DOCS --> DOCS_19
+    DOCS --> DOCS_20
+    DOCS --> DOCS_21
+    DOCS --> DOCS_22
+    DOCS --> DOCS_23
+    DOCS --> DOCS_24
+    DOCS --> MASTER_DOC
+    DOCS --> DIAGRAMS
+    DOCS --> WIREFRAMES
+    
+    DB --> DB_DOC
+    DB --> DB_ERD
+    DB --> DB_DIAGRAMS
+    DB --> DB_SQL
+    DB --> DB_MIGRATIONS
+    DB --> DB_BACKUP
+    DB --> DB_SCRIPTS
+    DB --> DB_TESTING
+    DB_SQL --> DB_SQL_TABLES
+    DB_SQL --> DB_SQL_CONSTRAINTS
+    DB_SQL --> DB_SQL_INDEXES
+    DB_SQL --> DB_SQL_VIEWS
+    DB_SQL --> DB_SQL_SPS
+    DB_SQL --> DB_SQL_FNS
+    DB_SQL --> DB_SQL_TRIGGERS
+    DB_SQL --> DB_SEED
+    DB_SQL --> DB_SAMPLE
+    
+    BACKEND --> BE_APP
+    BACKEND --> BE_REQ
+    BACKEND --> BE_ENV
+    BE_APP --> BE_API
+    BE_APP --> BE_SERVICES
+    BE_APP --> BE_REPOS
+    BE_APP --> BE_MODELS
+    BE_APP --> BE_DATABASE
+    BE_APP --> BE_MIDDLEWARE
+    BE_APP --> BE_CORE
+    BE_APP --> BE_UTILS
+    BE_APP --> BE_TESTS
+    BE_APP --> BE_ALEMBIC
+    BE_API --> BE_ROUTERS
+    BE_API --> BE_SCHEMAS
+    BE_API --> BE_DEPS
+    
+    FRONTEND --> FE_SRC
+    FRONTEND --> FE_PKG
+    FRONTEND --> FE_VITE
+    FRONTEND --> FE_TAIL
+    FRONTEND --> FE_ENV
+    FE_SRC --> FE_ASSETS
+    FE_SRC --> FE_COMPONENTS
+    FE_SRC --> FE_PAGES
+    FE_SRC --> FE_LAYOUTS
+    FE_SRC --> FE_HOOKS
+    FE_SRC --> FE_SERVICES
+    FE_SRC --> FE_API
+    FE_SRC --> FE_CONTEXT
+    FE_SRC --> FE_TYPES
+    FE_SRC --> FE_UTILS
+    FE_SRC --> FE_ROUTES
+    FE_SRC --> FE_PUBLIC
+    FE_COMPONENTS --> FE_COMPONENTS_UI
+    FE_COMPONENTS --> FE_COMPONENTS_LAYOUT
+    FE_COMPONENTS --> FE_COMPONENTS_FORMS
+    FE_COMPONENTS --> FE_COMPONENTS_COMMON
+    FE_PAGES --> FE_PAGES_AUTH
+    FE_PAGES --> FE_PAGES_ADMIN
+    FE_PAGES --> FE_PAGES_CASHIER
+    FE_PAGES --> FE_PAGES_SHARED
+    
+    classDef root fill:#1e293b,color:#fff,stroke:#0f172a;
+    classDef docs fill:#3b82f6,color:#fff;
+    classDef db fill:#10b981,color:#fff;
+    classDef backend fill:#8b52cf,color:#fff;
+    classDef frontend fill:#f59e0b,color:#fff;
+    classDef testing fill:#ef4444,color:#fff;
+    classDef deploy fill:#06b7d4,color:#fff;
+    classDef scripts fill:#84cc16,color:#fff;
+    classDef other fill:#6b7280,color:#fff;
+    classDef sub fill:#cbd5e1,color:#1e2937;
+    
+    class ROOT,ROOT_README,LICENSE,CHANGELOG,GITIGNORE root
+    class DOCS,MASTER_DOC,DIAGRAMS,WIREFRAMES docs
+    class DB,DB_SQL,DB_MIGRATIONS,DB_BACKUP,DB_SCRIPTS,DB_TESTING db
+    class BACKEND,BE_APP,BE_API,BE_SERVICES,BE_REPOS,BE_MODELS,BE_DATABASE,BE_MIDDLEWARE,BE_CORE,BE_UTILS,BE_TESTS,BE_ALEMBIC backend
+    class FRONTEND,FE_SRC,FE_ASSETS,FE_COMPONENTS,FE_PAGES,FE_LAYOUTS,FE_HOOKS,FE_SERVICES,FE_API,FE_CONTEXT,FE_TYPES,FE_UTILS,FE_ROUTES,FE_PUBLIC frontend
+    class TESTING,DEPLOY,SCRIPTS,ASSETS,AI testing
+    class DB_DOC,DB_ERD,DB_DIAGRAMS,DB_SQL_TABLES,DB_SQL_CONSTRAINTS,DB_SQL_INDEXES,DB_SQL_VIEWS,DB_SQL_SPS,DB_SQL_FNS,DB_SQL_TRIGGERS,DB_SEED,DB_SAMPLE,BE_ROUTERS,BE_SCHEMAS,BE_DEPS,FE_COMPONENTS_UI,FE_COMPONENTS_LAYOUT,FE_COMPONENTS_FORMS,FE_COMPONENTS_COMMON,FE_PAGES_AUTH,FE_PAGES_ADMIN,FE_PAGES_CASHIER,FE_PAGES_SHARED sub

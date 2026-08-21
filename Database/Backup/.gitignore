@@ -1,0 +1,5 @@
+# Backup files are large, binary, and must never be committed.
+# See Database/Backup/README.md for the backup/restore workflow.
+*.bak
+*.trn
+*.log

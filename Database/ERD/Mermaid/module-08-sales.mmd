@@ -1,0 +1,68 @@
+%% ======================================================================
+%% SmartPOS Database - MODULE 08: SALES
+%% Tables: sales, sale_items
+%% Dependencies: 02 Users, 03 Business (tax_rates), 05 Products,
+%%              10 CreditSales (customers)
+%% ======================================================================
+
+erDiagram
+
+  %% Referenced parents
+  users {
+    int user_id PK
+    nvarchar(50) username
+  }
+  tax_rates {
+    int tax_rate_id PK
+    nvarchar(100) tax_name
+    decimal(7,4) rate_percent
+  }
+  products {
+    int product_id PK
+    nvarchar(50) sku
+    nvarchar(200) product_name
+  }
+  customers {
+    int customer_id PK
+    nvarchar(30) customer_code
+    nvarchar(150) full_name
+  }
+
+  sales {
+    int sale_id PK
+    nvarchar(50) receipt_number
+    datetime2(0) sale_date
+    int user_id FK
+    int customer_id FK
+    int tax_rate_id FK
+    nvarchar(20) sale_type
+    decimal(19,4) subtotal
+    decimal(19,4) discount_amount
+    decimal(19,4) tax_amount
+    decimal(19,4) total_amount
+    decimal(19,4) amount_received
+    nvarchar(20) status
+    nvarchar(max) notes
+    datetime2(0) created_at
+    datetime2(0) updated_at
+  }
+
+  sale_items {
+    int sale_item_id PK
+    int sale_id FK
+    int product_id FK
+    decimal(12,3) quantity
+    decimal(19,4) unit_price
+    decimal(5,4) discount_rate
+    decimal(19,4) tax_amount
+    decimal(19,4) line_total
+    bit is_returned
+    decimal(12,3) returned_qty
+    datetime2(0) created_at
+  }
+
+  users ||--o{ sales : "cashier"
+  customers ||--o{ sales : "buyer (indexed ref, no FK)"
+  tax_rates ||--o{ sales : "applied to"
+  sales ||--o{ sale_items : "contains lines"
+  products ||--o{ sale_items : "sold as"
